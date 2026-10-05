@@ -181,16 +181,63 @@ export default function App() {
   const [newDocPassword, setNewDocPassword] = useState('');
   const [adminMsg, setAdminMsg] = useState('');
 
-  const sendEmailAlert = async (to: string, subject: string, body: string) => {
+  const sendEmailAlert = async (to: string, subject: string, body: string, html?: string) => {
     try {
       await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, body })
+        body: JSON.stringify({ to, subject, body, html: html || body })
       });
     } catch (err) {
       console.warn("Mail dispatch error or offline mode:", err);
     }
+  };
+
+  // Helper for generating gorgeous clinical emails
+  const getEmailHtml = (title: string, badgeText: string, badgeColor: string, patientName: string, contentHtml: string, footerNote?: string) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+          .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+          .header { background: linear-gradient(135deg, #2563eb, #1d4ed8); padding: 32px 24px; text-align: center; color: #ffffff; }
+          .header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+          .header p { margin: 6px 0 0; font-size: 13px; opacity: 0.9; }
+          .content { padding: 32px 28px; }
+          .badge { display: inline-block; padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px; }
+          .card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0; }
+          .row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
+          .label { color: #64748b; font-weight: 600; }
+          .val { color: #0f172a; font-weight: 700; }
+          .footer { background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>CareSync Hospital</h1>
+            <p>Smart Medical Care & Clinical Follow-up</p>
+          </div>
+          <div class="content">
+            <span class="badge" style="background-color: ${badgeColor === 'green' ? '#dcfce7' : badgeColor === 'red' ? '#fee2e2' : '#dbeafe'}; color: ${badgeColor === 'green' ? '#15803d' : badgeColor === 'red' ? '#b91c1c' : '#1d4ed8'};">
+              ${badgeText}
+            </span>
+            <h2 style="font-size: 18px; margin-top: 0; color: #0f172a;">${title}</h2>
+            <p style="font-size: 14px; line-height: 1.6; color: #334155;">Hello <strong>${patientName}</strong>,</p>
+            ${contentHtml}
+            ${footerNote ? `<p style="font-size: 13px; color: #64748b; margin-top: 24px; font-style: italic;">${footerNote}</p>` : ''}
+          </div>
+          <div class="footer">
+            CareSync Hospital Clinical Center &bull; Automated Patient Portal Notice<br/>
+            Need assistance? Reach out to support@caresync.com
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   };
 
   // Load and refresh data from MongoDB in background with Intelligent Merge
@@ -316,11 +363,39 @@ export default function App() {
     const emailClean = emailInput.trim().toLowerCase();
     const passClean = passwordInput.trim();
 
+    const onLoginSuccess = (userObj: { name: string; email: string; role: 'patient' | 'doctor' | 'admin' }) => {
+      setIsLoggedIn(true);
+      setCurrentUser(userObj);
+      setIsLoggingIn(false);
+
+      // Send Login Security Alert Email
+      const loginHtml = getEmailHtml(
+        'New Session Sign-In Alert',
+        'Authorized Access',
+        'blue',
+        userObj.name,
+        `
+          <div class="card">
+            <div class="row"><span class="label">Account Role:</span><span class="val">${userObj.role.toUpperCase()}</span></div>
+            <div class="row"><span class="label">Login Time:</span><span class="val">${new Date().toLocaleString()}</span></div>
+            <div class="row"><span class="label">Device Access:</span><span class="val">CareSync Web Client Portal</span></div>
+          </div>
+          <p style="font-size: 13px; color: #475569;">You have successfully signed in to the CareSync Hospital Management Platform. If this wasn't you, please secure your account immediately.</p>
+        `,
+        'For account security assistance, contact security@caresync.com.'
+      );
+
+      sendEmailAlert(
+        userObj.email,
+        'Security Notice: Successful Login to CareSync Portal',
+        `Hello ${userObj.name},\n\nYou have successfully signed in to the CareSync Portal as ${userObj.role.toUpperCase()} at ${new Date().toLocaleString()}.`,
+        loginHtml
+      );
+    };
+
     // 1. Instant check for Admin
     if (emailClean === 'admin@caresync.com' && (passClean === 'AdminCareSync2026' || passClean === 'admin123')) {
-      setIsLoggedIn(true);
-      setCurrentUser({ name: 'Hospital Administration', email: emailClean, role: 'admin' });
-      setIsLoggingIn(false);
+      onLoginSuccess({ name: 'Hospital Administration', email: emailClean, role: 'admin' });
       return;
     }
 
@@ -332,17 +407,13 @@ export default function App() {
     );
 
     if (matchedDoctor) {
-      setIsLoggedIn(true);
-      setCurrentUser({ name: matchedDoctor.name, email: matchedDoctor.email, role: 'doctor' });
-      setIsLoggingIn(false);
+      onLoginSuccess({ name: matchedDoctor.name, email: matchedDoctor.email, role: 'doctor' });
       return;
     }
 
     // 3. Instant check for Demo Patient or registered patients from local state / storage
     if (emailClean === 'patient@caresync.com' && (passClean === 'patient123' || passClean === 'caresync@patient')) {
-      setIsLoggedIn(true);
-      setCurrentUser({ name: 'Harsh Vashisht (Demo Patient)', email: emailClean, role: 'patient' });
-      setIsLoggingIn(false);
+      onLoginSuccess({ name: 'Harsh Vashisht (Demo Patient)', email: emailClean, role: 'patient' });
       return;
     }
 
@@ -363,9 +434,7 @@ export default function App() {
     );
 
     if (matchedPatient) {
-      setIsLoggedIn(true);
-      setCurrentUser({ name: matchedPatient.name, email: matchedPatient.email, role: 'patient' });
-      setIsLoggingIn(false);
+      onLoginSuccess({ name: matchedPatient.name, email: matchedPatient.email, role: 'patient' });
       return;
     }
 
@@ -377,13 +446,12 @@ export default function App() {
       });
       const data = await res.json();
       if (data.success) {
-        setIsLoggedIn(true);
-        setCurrentUser({ name: data.name, email: data.email, role: data.role });
+        onLoginSuccess({ name: data.name, email: data.email, role: data.role });
         refreshData();
       } else {
         setAuthError(data.message || 'Invalid email or password');
+        setIsLoggingIn(false);
       }
-      setIsLoggingIn(false);
     } catch (err) {
       setIsLoggingIn(false);
       setAuthError('Invalid email or password. Use password "caresync@doctor" for doctors.');
@@ -432,11 +500,28 @@ export default function App() {
     setContactInput('');
     setPasswordInput('');
 
-    // 4. Send welcome email notification
+    // 4. Send welcome email notification with gorgeous HTML design
+    const registerHtml = getEmailHtml(
+      'Account Registration Successful',
+      'Welcome to CareSync',
+      'green',
+      cleanName,
+      `
+        <div class="card">
+          <div class="row"><span class="label">Registered Email:</span><span class="val">${cleanEmail}</span></div>
+          <div class="row"><span class="label">Contact Phone:</span><span class="val">${cleanContact || 'Not specified'}</span></div>
+          <div class="row"><span class="label">Patient Portal Access:</span><span class="val" style="color: #16a34a;">Active & Verified</span></div>
+        </div>
+        <p style="font-size: 14px; line-height: 1.6; color: #334155;">You can now schedule consultations with specialists, monitor clinical audit entries, and access AI-generated prescription summaries seamlessly.</p>
+      `,
+      'Keep your account credentials confidential. We will never ask for your password via email.'
+    );
+
     sendEmailAlert(
       cleanEmail,
-      'Welcome to CareSync Hospital!',
-      `Hello ${cleanName},\n\nYour patient account has been successfully registered under ${cleanEmail}!\n\nYou can now log in to schedule medical slot consultations, write down symptom profiles, and sync appointments with Google Calendar.\n\nBest regards,\nCareSync Hospital Admin Team`
+      'Welcome to CareSync Hospital - Profile Activated',
+      `Hello ${cleanName},\n\nYour patient account has been successfully registered under ${cleanEmail}!\n\nYou can now log in to schedule medical slot consultations.`,
+      registerHtml
     );
 
     // 5. Sync to backend API in background
@@ -496,11 +581,29 @@ export default function App() {
     setProblemDescription('');
     setTimeout(() => setBookingMsg({ text: '', type: '' }), 5000);
 
-    // 2. Background email notification (non-blocking)
+    // 2. Background email notification (non-blocking) with gorgeous HTML format
+    const bookingHtml = getEmailHtml(
+      'Medical Consultation Confirmed',
+      'Confirmed & Synced',
+      'green',
+      currentUser.name,
+      `
+        <div class="card">
+          <div class="row"><span class="label">Consulting Specialist:</span><span class="val">${doc?.name}</span></div>
+          <div class="row"><span class="label">Medical Department:</span><span class="val">${doc?.specialty}</span></div>
+          <div class="row"><span class="label">Consultation Slot:</span><span class="val">2026-08-25 ${selectedSlot}</span></div>
+          <div class="row"><span class="label">Reported Symptoms:</span><span class="val" style="font-weight: 400; font-style: italic;">"${problemDescription}"</span></div>
+        </div>
+        <p style="font-size: 13px; color: #475569;">A Google Calendar invitation has been automatically scheduled with an active 15-minute prior notification reminder.</p>
+      `,
+      'Please arrive 10 minutes prior to your scheduled consultation slot.'
+    );
+
     sendEmailAlert(
       currentUser.email,
-      'Appointment Booking Confirmed - CareSync Hospital',
-      `Hello ${currentUser.name},\n\nYour medical appointment has been successfully scheduled with ${doc?.name} (${doc?.specialty})!\n\nSlot Timing: 2026-08-25 ${selectedSlot}\nSymptom Chief Complaint: "${problemDescription}"\n\nA Google Calendar invitation has been automatically synced to both you and the specialist.\n\nBest regards,\nCareSync Scheduling Portal`
+      '✓ Appointment Booking Confirmed - CareSync Hospital',
+      `Hello ${currentUser.name},\n\nYour appointment with ${doc?.name} (${doc?.specialty}) is scheduled for 2026-08-25 ${selectedSlot}.\n\nSymptoms: "${problemDescription}"`,
+      bookingHtml
     );
 
     // 3. Persist to MongoDB Serverless API silently in background
@@ -530,12 +633,29 @@ export default function App() {
       a.id === id ? { ...a, status: 'cancelled', calendarSynced: false } : a
     ));
 
-    // 2. Non-blocking cancellation email
+    // 2. Non-blocking cancellation email with HTML format
     if (appt && currentUser) {
+      const cancelHtml = getEmailHtml(
+        'Appointment Cancellation Notice',
+        'Cancelled',
+        'red',
+        appt.patientName,
+        `
+          <div class="card" style="border-left: 4px solid #ef4444;">
+            <div class="row"><span class="label">Doctor:</span><span class="val">${appt.doctorName}</span></div>
+            <div class="row"><span class="label">Original Timing:</span><span class="val">${appt.slotTime}</span></div>
+            <div class="row"><span class="label">Status:</span><span class="val" style="color: #ef4444;">Cancelled & Calendar Event Removed</span></div>
+          </div>
+          <p style="font-size: 13px; color: #475569;">Your scheduled appointment slot has been successfully released. You may book another consultation anytime through our portal.</p>
+        `,
+        'If this cancellation was unintended, please visit the CareSync portal to reschedule.'
+      );
+
       sendEmailAlert(
         appt.patientEmail || currentUser.email,
-        'Appointment Cancelled - CareSync Hospital',
-        `Hello ${appt.patientName},\n\nYour appointment with ${appt.doctorName} scheduled for ${appt.slotTime} has been successfully cancelled.\n\nThe corresponding Google Calendar event has been removed.\n\nBest regards,\nCareSync Scheduling Portal`
+        'Notice: Appointment Cancelled - CareSync Hospital',
+        `Hello ${appt.patientName},\n\nYour appointment with ${appt.doctorName} scheduled for ${appt.slotTime} has been cancelled.`,
+        cancelHtml
       );
     }
 
@@ -619,13 +739,34 @@ export default function App() {
       return copy;
     });
 
-    // 2. Background email notification (non-blocking) to the exact patient
+    // 2. Background email notification (non-blocking) with clinical HTML card
     const apptObj = appointments.find(a => a.id === id);
     const targetEmail = apptObj?.patientEmail || patientsList.find(p => p.name === apptObj?.patientName)?.email || 'vashishtharsh6@gmail.com';
+
+    const rxHtml = getEmailHtml(
+      'Consultation Complete & Prescription Summary',
+      'Completed',
+      'green',
+      apptObj?.patientName || 'Patient',
+      `
+        <div class="card" style="border-left: 4px solid #10b981; background: #f0fdf4;">
+          <h4 style="margin: 0 0 8px; color: #065f46; font-size: 14px;">Clinical Prescription / Advice:</h4>
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #0f172a; white-space: pre-line;">${rxText}</p>
+        </div>
+
+        <div class="card" style="border-left: 4px solid #3b82f6; background: #eff6ff;">
+          <h4 style="margin: 0 0 8px; color: #1e40af; font-size: 14px;">✨ Patient-Friendly AI Care Insights:</h4>
+          <p style="margin: 0; font-size: 13px; color: #334155; line-height: 1.6; white-space: pre-line;">${aiSummarySim}</p>
+        </div>
+      `,
+      'Follow medical instructions carefully. In case of unexpected reactions, immediately contact the hospital.'
+    );
+
     sendEmailAlert(
       targetEmail,
-      'Consultation Completed & Prescription Details - CareSync Hospital',
-      `Hello ${apptObj?.patientName || 'Patient'},\n\nYour consultation with ${apptObj?.doctorName} is completed!\n\nHere are the details:\n\n=== Doctor Diagnosis Notes ===\n${rxText}\n\n=== Patient Friendly AI Clinical Summary ===\n${aiSummarySim}\n\nThank you for choosing CareSync Hospital.\n\nBest regards,\nCareSync Care Team`
+      '✓ Medical Prescription & Clinical Summary - CareSync Hospital',
+      `Hello ${apptObj?.patientName || 'Patient'},\n\nYour consultation with ${apptObj?.doctorName} is completed.\n\nPrescription: ${rxText}\n\nAI Summary:\n${aiSummarySim}`,
+      rxHtml
     );
 
     // 3. Persist to MongoDB Serverless API in background
