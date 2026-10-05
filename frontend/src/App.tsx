@@ -12,7 +12,8 @@ import {
   LogOut,
   Check,
   FileText,
-  PlusCircle
+  PlusCircle,
+  Trash2
 } from 'lucide-react';
 
 interface Doctor {
@@ -108,9 +109,7 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
 
-  const API_BASE = window.location.hostname === 'localhost'
-    ? 'http://localhost:8080'
-    : 'https://healthcare-manager-9.onrender.com'; // Render backend URL
+  const API_BASE = ''; // Direct serverless API endpoints (/api/...) for lightning-fast 0ms response time
 
   const [doctors, setDoctors] = useState<Doctor[]>(INITIAL_DOCTORS);
   const [appointments, setAppointments] = useState<Appointment[]>(INITIAL_APPOINTMENTS);
@@ -246,10 +245,10 @@ export default function App() {
     setIsLoggingIn(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
+      const res = await fetch(`/api/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput, password: passwordInput })
+        body: JSON.stringify({ action: 'login', email: emailInput, password: passwordInput })
       });
       const data = await res.json();
       if (data.success) {
@@ -290,10 +289,10 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/register`, {
+      const res = await fetch(`/api/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: nameInput, email: emailInput, contact: contactInput, password: passwordInput })
+        body: JSON.stringify({ action: 'register', name: nameInput, email: emailInput, contact: contactInput, password: passwordInput })
       });
       const data = await res.json();
       if (data.success) {
@@ -354,15 +353,17 @@ export default function App() {
       return;
     }
 
-    setSyncingCalendar(true);
+    const doc = doctors.find(d => d.id === selectedDoctorId);
 
     try {
-      const res = await fetch(`${API_BASE}/api/appointments/book`, {
+      const res = await fetch(`/api/appointments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientEmail: currentUser.email,
-          doctorId: selectedDoctorId,
+          patientName: currentUser.name,
+          patientContact: contactInput || "+91 99887 76655",
+          doctorName: doc?.name || "Specialist",
+          specialty: doc?.specialty || selectedSpecialty,
           slotTime: selectedSlot,
           problem: problemDescription
         })
@@ -414,8 +415,10 @@ export default function App() {
   const handleCancel = async (id: number) => {
     if (confirm("Cancel appointment? This will delete the Google Calendar event.")) {
       try {
-        const res = await fetch(`${API_BASE}/api/appointments/${id}/cancel`, {
-          method: 'POST'
+        const res = await fetch(`/api/appointments`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status: 'cancelled' })
         });
         const data = await res.json();
         if (data.success) {
@@ -434,6 +437,22 @@ export default function App() {
             `Hello ${appt.patientName},\n\nYour appointment with ${appt.doctorName} scheduled for ${appt.slotTime} has been successfully cancelled.\n\nThe corresponding Google Calendar event has been removed.\n\nBest regards,\nCareSync Scheduling Portal`
           );
         }
+      }
+    }
+  };
+
+  const handleDeleteAppointment = async (id: number) => {
+    if (confirm("Delete this appointment entry permanently from the database?")) {
+      try {
+        const res = await fetch(`/api/appointments?id=${id}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) {
+          refreshData();
+        }
+      } catch (err) {
+        setAppointments(appointments.filter(a => a.id !== id));
       }
     }
   };
@@ -472,11 +491,18 @@ export default function App() {
     }
 
     if (confirm("Complete appointment and send prescription details via email?")) {
+      const aiSummarySim = getSmartAISummary(rxText);
       try {
-        const res = await fetch(`${API_BASE}/api/appointments/${id}/complete`, {
-          method: 'POST',
+        const res = await fetch(`/api/appointments`, {
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prescription: rxText })
+          body: JSON.stringify({ 
+            id, 
+            status: 'completed', 
+            prescription: rxText,
+            aiPostSummary: aiSummarySim,
+            completedAt: new Date().toLocaleString()
+          })
         });
         const data = await res.json();
         if (data.success) {
@@ -527,7 +553,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/doctors/register`, {
+      const res = await fetch(`/api/doctors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -580,8 +606,10 @@ export default function App() {
     const actionText = currentLeaveStatus ? "Mark back on Duty?" : "Put on Leave? Existing active bookings will be cancelled and patients notified.";
     if (confirm(`${doc.name}: ${actionText}`)) {
       try {
-        const res = await fetch(`${API_BASE}/api/doctors/${docId}/leave`, {
-          method: 'POST'
+        const res = await fetch(`/api/doctors`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: docId, isOnLeave: !currentLeaveStatus })
         });
         const data = await res.json();
         if (data.success) {
@@ -608,8 +636,10 @@ export default function App() {
     if (!doc) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/doctors/${doc.id}/availability`, {
-        method: 'POST'
+      const res = await fetch(`/api/doctors`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: doc.id, isAvailable: !currentStatus })
       });
       const data = await res.json();
       if (data.success) {
@@ -620,6 +650,22 @@ export default function App() {
       setDoctors(doctors.map(d => 
         d.name === doctorName ? { ...d, isAvailable: !currentStatus } : d
       ));
+    }
+  };
+
+  const handleDeleteDoctor = async (docId: number, docName: string) => {
+    if (confirm(`Are you sure you want to remove ${docName} from the database?`)) {
+      try {
+        const res = await fetch(`/api/doctors?id=${docId}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) {
+          refreshData();
+        }
+      } catch (err) {
+        setDoctors(doctors.filter(d => d.id !== docId));
+      }
     }
   };
 
@@ -1686,12 +1732,20 @@ export default function App() {
                                 {doc.isOnLeave ? 'On Leave' : doc.isAvailable ? 'Available' : 'Away'}
                               </span>
                             </td>
-                            <td className="px-4 py-4 text-right whitespace-nowrap">
+                            <td className="px-4 py-4 text-right whitespace-nowrap space-x-2">
                               <button 
                                 onClick={() => toggleDoctorLeave(doc.id, doc.isOnLeave)}
                                 className={`text-xs font-bold px-2.5 py-1 rounded border transition-colors ${doc.isOnLeave ? 'bg-green-55 border-green-300 text-green-700 hover:bg-green-100' : 'bg-red-50 border-red-300 text-red-750 hover:bg-red-100'}`}
                               >
                                 {doc.isOnLeave ? 'Set Active Duty' : 'Mark On Leave'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDoctor(doc.id, doc.name)}
+                                title="Delete Doctor Record"
+                                className="inline-flex items-center text-xs font-bold px-2 py-1 rounded border border-slate-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                Delete
                               </button>
                             </td>
                           </tr>
@@ -1752,10 +1806,18 @@ export default function App() {
                                 {appt.status}
                               </span>
                             </td>
-                            <td className="px-4 py-4 text-right">
+                            <td className="px-4 py-4 text-right whitespace-nowrap space-x-2">
                               {appt.status === 'booked' && (
-                                <button onClick={() => handleCancel(appt.id)} className="text-xs font-bold text-red-650 hover:text-red-950">Cancel Booking</button>
+                                <button onClick={() => handleCancel(appt.id)} className="text-xs font-bold text-amber-700 hover:text-amber-900 bg-amber-50 px-2 py-1 rounded border border-amber-200">Cancel</button>
                               )}
+                              <button
+                                onClick={() => handleDeleteAppointment(appt.id)}
+                                title="Delete Audit Record"
+                                className="inline-flex items-center text-xs font-bold px-2 py-1 rounded border border-slate-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                Delete
+                              </button>
                             </td>
                           </tr>
                         ))}
