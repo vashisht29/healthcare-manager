@@ -346,7 +346,19 @@ export default function App() {
       return;
     }
 
-    const matchedPatient = patientsList.find(p => 
+    // Read latest patients from memory and localStorage
+    let allPatients = [...patientsList];
+    try {
+      const stored = localStorage.getItem('caresync_patients_v2');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          allPatients = [...allPatients, ...parsed];
+        }
+      }
+    } catch (e) {}
+
+    const matchedPatient = allPatients.find(p => 
       p.email.trim().toLowerCase() === emailClean && p.passwordHash === passClean
     );
 
@@ -389,52 +401,52 @@ export default function App() {
       return;
     }
 
+    const cleanEmail = emailInput.trim().toLowerCase();
+    const cleanPassword = passwordInput.trim();
+    const cleanName = nameInput.trim();
+    const cleanContact = contactInput.trim();
+
+    // 1. Immediately create patient record
+    const newPatient: PatientUser = {
+      name: cleanName,
+      email: cleanEmail,
+      contact: cleanContact,
+      passwordHash: cleanPassword
+    };
+
+    // 2. Synchronously update state and localStorage
     try {
-      const res = await fetch(`/api/auth`, {
+      const existingList = JSON.parse(localStorage.getItem('caresync_patients_v2') || '[]');
+      const updatedList = [...existingList.filter((p: any) => p.email.toLowerCase() !== cleanEmail), newPatient];
+      localStorage.setItem('caresync_patients_v2', JSON.stringify(updatedList));
+    } catch (e) {}
+
+    setPatientsList(prev => [...prev.filter(p => p.email.toLowerCase() !== cleanEmail), newPatient]);
+    setIsLoggedIn(true);
+    setCurrentUser({ name: cleanName, email: cleanEmail, role: 'patient' });
+    setIsRegistering(false);
+
+    // 3. Clear inputs
+    setNameInput('');
+    setEmailInput('');
+    setContactInput('');
+    setPasswordInput('');
+
+    // 4. Send welcome email notification
+    sendEmailAlert(
+      cleanEmail,
+      'Welcome to CareSync Hospital!',
+      `Hello ${cleanName},\n\nYour patient account has been successfully registered under ${cleanEmail}!\n\nYou can now log in to schedule medical slot consultations, write down symptom profiles, and sync appointments with Google Calendar.\n\nBest regards,\nCareSync Hospital Admin Team`
+    );
+
+    // 5. Sync to backend API in background
+    try {
+      fetch(`/api/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'register', name: nameInput, email: emailInput, contact: contactInput, password: passwordInput })
-      });
-      const data = await res.json();
-      if (data.success) {
-        const newPatient: PatientUser = {
-          name: nameInput,
-          email: emailInput,
-          contact: contactInput,
-          passwordHash: passwordInput
-        };
-        setPatientsList(prev => [...prev.filter(p => p.email !== newPatient.email), newPatient]);
-        setIsLoggedIn(true);
-        setCurrentUser({ name: nameInput, email: emailInput, role: 'patient' });
-        refreshData();
-      } else {
-        setAuthError(data.message || 'Registration failed.');
-      }
-      setIsRegistering(false);
-    } catch (err) {
-      setIsRegistering(false);
-      // Local prototype register fallback
-      const newPatient: PatientUser = {
-        name: nameInput,
-        email: emailInput,
-        contact: contactInput,
-        passwordHash: passwordInput
-      };
-      setPatientsList(prev => [...prev.filter(p => p.email !== newPatient.email), newPatient]);
-      setIsLoggedIn(true);
-      setCurrentUser({ name: newPatient.name, email: newPatient.email, role: 'patient' });
-
-      sendEmailAlert(
-        newPatient.email,
-        'Welcome to CareSync Hospital!',
-        `Hello ${newPatient.name},\n\nYour patient account has been successfully registered under ${newPatient.email}!\n\nYou can now log in to schedule medical slot consultations, write down symptom profiles, and sync appointments with Google Calendar.\n\nBest regards,\nCareSync Hospital Admin Team`
-      );
-
-      setNameInput('');
-      setEmailInput('');
-      setContactInput('');
-      setPasswordInput('');
-    }
+        body: JSON.stringify({ action: 'register', name: cleanName, email: cleanEmail, contact: cleanContact, password: cleanPassword })
+      }).catch(err => console.warn("Backend register sync fallback:", err));
+    } catch (err) {}
   };
 
   const handleLogout = () => {
