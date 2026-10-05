@@ -10,10 +10,10 @@ import {
   Mail,
   Phone,
   LogOut,
-  Check,
   FileText,
   PlusCircle,
-  Trash2
+  Trash2,
+  ExternalLink
 } from 'lucide-react';
 
 interface Doctor {
@@ -239,6 +239,37 @@ export default function App() {
       </html>
     `;
   };
+
+  // Helper to generate a direct 1-click Google Calendar Event link
+  const getGoogleCalendarUrl = (appt: Appointment) => {
+    const title = encodeURIComponent(`CareSync Consultation: ${appt.doctorName} (${appt.specialty})`);
+    const details = encodeURIComponent(`Consultation with ${appt.doctorName}.\nSpecialty: ${appt.specialty}\nSymptoms: ${appt.problem}\nLocation: CareSync Hospital Clinical Center\nPatient: ${appt.patientName}`);
+    const location = encodeURIComponent('CareSync Hospital Clinical Center, Floor 3');
+    
+    // Parse time if format like "10:00 AM" or "02:30 PM"
+    let startTimeStr = "20260825T100000Z";
+    let endTimeStr = "20260825T104500Z";
+    try {
+      const match = appt.slotTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (match) {
+        let hours = parseInt(match[1], 10);
+        const mins = match[2];
+        const ampm = match[3].toUpperCase();
+        if (ampm === 'PM' && hours < 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+        const hh = hours.toString().padStart(2, '0');
+        const endHh = (hours + 1).toString().padStart(2, '0');
+        // Format as YYYYMMDDTHHmmss
+        startTimeStr = `20260825T${hh}${mins}00Z`;
+        endTimeStr = `20260825T${endHh}${mins}00Z`;
+      }
+    } catch (e) {
+      // fallback to default
+    }
+
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}&dates=${startTimeStr}/${endTimeStr}`;
+  };
+
 
   // Load and refresh data from MongoDB in background with Intelligent Merge
   const refreshData = async () => {
@@ -594,7 +625,12 @@ export default function App() {
           <div class="row"><span class="label">Consultation Slot:</span><span class="val">2026-08-25 ${selectedSlot}</span></div>
           <div class="row"><span class="label">Reported Symptoms:</span><span class="val" style="font-weight: 400; font-style: italic;">"${problemDescription}"</span></div>
         </div>
-        <p style="font-size: 13px; color: #475569;">A Google Calendar invitation has been automatically scheduled with an active 15-minute prior notification reminder.</p>
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${getGoogleCalendarUrl(newAppt)}" target="_blank" rel="noopener noreferrer" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
+            📅 Add to Google Calendar
+          </a>
+        </div>
+        <p style="font-size: 13px; color: #475569; text-align: center;">Click above to add this consultation to your personal Google Calendar with automatic 15-minute reminders.</p>
       `,
       'Please arrive 10 minutes prior to your scheduled consultation slot.'
     );
@@ -1771,10 +1807,17 @@ export default function App() {
                                 <td className="px-4 py-4 text-xs text-slate-450">{appt.createdAt}</td>
                                 <td className="px-4 py-4">
                                   {appt.calendarSynced ? (
-                                    <span className="inline-flex items-center text-xs font-semibold text-green-700 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-200">
-                                      <Check className="h-3 w-3 mr-1" />
-                                      Active Sync
-                                    </span>
+                                    <a
+                                      href={getGoogleCalendarUrl(appt)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title="Open in Google Calendar to add this event"
+                                      className="inline-flex items-center text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 hover:text-blue-900 px-2.5 py-1 rounded-lg border border-blue-200 transition-colors shadow-2xs group cursor-pointer"
+                                    >
+                                      <Calendar className="h-3 w-3 mr-1 text-blue-600 group-hover:scale-110 transition-transform" />
+                                      Sync Calendar
+                                      <ExternalLink className="h-2.5 w-2.5 ml-1 text-blue-500 opacity-70 group-hover:opacity-100" />
+                                    </a>
                                   ) : (
                                     <span className="text-xs text-slate-400 italic">Inactive</span>
                                   )}
@@ -2150,10 +2193,17 @@ export default function App() {
                             <td className="px-4 py-4 text-xs text-slate-500">{appt.createdAt}</td>
                             <td className="px-4 py-4">
                               {appt.calendarSynced ? (
-                                <span className="inline-flex items-center text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                                  <Check className="h-3 w-3 mr-1" />
-                                  Synced
-                                </span>
+                                <a
+                                  href={getGoogleCalendarUrl(appt)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Inspect / open in Google Calendar"
+                                  className="inline-flex items-center text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 hover:text-blue-900 px-2 py-0.5 rounded-md border border-blue-200 transition-colors cursor-pointer group"
+                                >
+                                  <Calendar className="h-3 w-3 mr-1 text-blue-600 group-hover:scale-110 transition-transform" />
+                                  Google Cal
+                                  <ExternalLink className="h-2.5 w-2.5 ml-1 text-blue-500 opacity-70 group-hover:opacity-100" />
+                                </a>
                               ) : (
                                 <span className="text-xs text-slate-400 italic">No Sync</span>
                               )}
