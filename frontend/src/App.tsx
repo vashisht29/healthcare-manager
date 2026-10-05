@@ -148,26 +148,25 @@ export default function App() {
     }
   };
 
-  // Load and refresh data from the centralized PostgreSQL database via API
+  // Load and refresh data from MongoDB via Serverless API in parallel
   const refreshData = async () => {
     try {
-      const docRes = await fetch(`${API_BASE}/api/doctors`);
+      const [docRes, apptRes] = await Promise.all([
+        fetch(`/api/doctors`),
+        fetch(`/api/appointments`)
+      ]);
+
       if (docRes.ok) {
         const docsData = await docRes.json();
-        if (Array.isArray(docsData)) {
-          setDoctors(docsData);
-        }
+        if (Array.isArray(docsData)) setDoctors(docsData);
       }
 
-      const apptRes = await fetch(`${API_BASE}/api/appointments`);
       if (apptRes.ok) {
         const apptsData = await apptRes.json();
-        if (Array.isArray(apptsData)) {
-          setAppointments(apptsData);
-        }
+        if (Array.isArray(apptsData)) setAppointments(apptsData);
       }
     } catch (err) {
-      console.warn("Backend API not reachable. Using memory cache fallback.", err);
+      console.warn("API fallback to local state", err);
     }
   };
 
