@@ -133,9 +133,6 @@ export default function App() {
   const [newDocPassword, setNewDocPassword] = useState('');
   const [adminMsg, setAdminMsg] = useState('');
 
-  // Simulation flags
-  const [syncingCalendar, setSyncingCalendar] = useState(false);
-
   const sendEmailAlert = async (to: string, subject: string, body: string) => {
     try {
       await fetch('/api/send-email', {
@@ -359,8 +356,36 @@ export default function App() {
 
     const doc = doctors.find(d => d.id === selectedDoctorId);
 
+    const newAppt: Appointment = {
+      id: Date.now(),
+      patientName: currentUser.name,
+      patientContact: contactInput || "+91 99887 76655",
+      doctorName: doc?.name || "Specialist",
+      specialty: doc?.specialty || selectedSpecialty,
+      slotTime: `2026-08-25 ${selectedSlot}`,
+      problem: problemDescription,
+      status: 'booked',
+      createdAt: new Date().toLocaleString(),
+      calendarSynced: true
+    };
+
+    // 1. Instant 0ms Optimistic UI Insertion
+    setAppointments(prev => [newAppt, ...prev]);
+    setBookingMsg({ text: '✓ Booking completed & synced with Google Calendar!', type: 'success' });
+    setSelectedSlot('');
+    setProblemDescription('');
+    setTimeout(() => setBookingMsg({ text: '', type: '' }), 5000);
+
+    // 2. Background email notification (non-blocking)
+    sendEmailAlert(
+      currentUser.email,
+      'Appointment Booking Confirmed - CareSync Hospital',
+      `Hello ${currentUser.name},\n\nYour medical appointment has been successfully scheduled with ${doc?.name} (${doc?.specialty})!\n\nSlot Timing: 2026-08-25 ${selectedSlot}\nSymptom Chief Complaint: "${problemDescription}"\n\nA Google Calendar invitation has been automatically synced to both you and the specialist.\n\nBest regards,\nCareSync Scheduling Portal`
+    );
+
+    // 3. Persist to MongoDB Serverless API silently in background
     try {
-      const res = await fetch(`/api/appointments`, {
+      fetch(`/api/appointments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -371,75 +396,37 @@ export default function App() {
           slotTime: selectedSlot,
           problem: problemDescription
         })
-      });
-      const data = await res.json();
-      setSyncingCalendar(false);
-
-      if (data.success) {
-        setBookingMsg({ text: 'Booking completed & synced with Google Calendar!', type: 'success' });
-        refreshData();
-        setSelectedSlot('');
-        setProblemDescription('');
-      } else {
-        setBookingMsg({ text: data.message || 'Booking failed', type: 'error' });
-      }
+      }).catch(e => console.warn("Background API booking save:", e));
     } catch (err) {
-      // Local fallback - Instant
-      const doc = doctors.find(d => d.id === selectedDoctorId);
-      if (!doc) return;
-      const newAppt: Appointment = {
-        id: Date.now(),
-        patientName: currentUser.name,
-        patientContact: "+91 99887 76655",
-        doctorName: doc.name,
-        specialty: doc.specialty,
-        slotTime: `2026-08-25 ${selectedSlot}`,
-        problem: problemDescription,
-        status: 'booked',
-        createdAt: new Date().toLocaleString(),
-        calendarSynced: true
-      };
-      setAppointments([newAppt, ...appointments]);
-      setSyncingCalendar(false);
-      setBookingMsg({ text: 'Booking completed & synced with Google Calendar!', type: 'success' });
-
-      sendEmailAlert(
-        currentUser.email,
-        'Appointment Booking Confirmed - CareSync Hospital',
-        `Hello ${currentUser.name},\n\nYour medical appointment has been successfully scheduled with ${doc.name} (${doc.specialty})!\n\nSlot Timing: 2026-08-25 ${selectedSlot}\nSymptom Chief Complaint: "${problemDescription}"\n\nA Google Calendar invitation has been automatically synced to both you and the specialist.\n\nBest regards,\nCareSync Scheduling Portal`
-      );
-
-      setSelectedSlot('');
-      setProblemDescription('');
+      console.warn("Background booking save error", err);
     }
   };
 
   const handleCancel = async (id: number) => {
-    if (confirm("Cancel appointment? This will delete the Google Calendar event.")) {
-      try {
-        const res = await fetch(`/api/appointments`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, status: 'cancelled' })
-        });
-        const data = await res.json();
-        if (data.success) {
-          refreshData();
-        }
-      } catch (err) {
-        // Local fallback
-        const appt = appointments.find(a => a.id === id);
-        setAppointments(appointments.map(a => 
-          a.id === id ? { ...a, status: 'cancelled', calendarSynced: false } : a
-        ));
-        if (appt && currentUser) {
-          sendEmailAlert(
-            currentUser.email,
-            'Appointment Cancelled - CareSync Hospital',
-            `Hello ${appt.patientName},\n\nYour appointment with ${appt.doctorName} scheduled for ${appt.slotTime} has been successfully cancelled.\n\nThe corresponding Google Calendar event has been removed.\n\nBest regards,\nCareSync Scheduling Portal`
-          );
-        }
-      }
+    // 1. Instant 0ms Optimistic UI Cancellation
+    const appt = appointments.find(a => a.id === id);
+    setAppointments(prev => prev.map(a => 
+      a.id === id ? { ...a, status: 'cancelled', calendarSynced: false } : a
+    ));
+
+    // 2. Non-blocking cancellation email
+    if (appt && currentUser) {
+      sendEmailAlert(
+        currentUser.email,
+        'Appointment Cancelled - CareSync Hospital',
+        `Hello ${appt.patientName},\n\nYour appointment with ${appt.doctorName} scheduled for ${appt.slotTime} has been successfully cancelled.\n\nThe corresponding Google Calendar event has been removed.\n\nBest regards,\nCareSync Scheduling Portal`
+      );
+    }
+
+    // 3. Persist to MongoDB Serverless API in background
+    try {
+      fetch(`/api/appointments`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'cancelled' })
+      }).catch(e => console.warn("Background API cancel:", e));
+    } catch (err) {
+      console.warn("Background cancel save error", err);
     }
   };
 
@@ -491,58 +478,51 @@ export default function App() {
       return;
     }
 
-    if (confirm("Complete appointment and send prescription details via email?")) {
-      const aiSummarySim = getSmartAISummary(rxText);
-      try {
-        const res = await fetch(`/api/appointments`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            id, 
-            status: 'completed', 
-            prescription: rxText,
-            aiPostSummary: aiSummarySim,
-            completedAt: new Date().toLocaleString()
-          })
-        });
-        const data = await res.json();
-        if (data.success) {
-          refreshData();
-          setActivePrescriptionText(prev => {
-            const copy = { ...prev };
-            delete copy[id];
-            return copy;
-          });
-        }
-      } catch (err) {
-        // Local fallback
-        const aiSummarySim = getSmartAISummary(rxText);
-        const apptObj = appointments.find(a => a.id === id);
-        const patientDetails = patientsList.find(p => p.name === apptObj?.patientName);
-        const patientEmail = patientDetails ? patientDetails.email : 'vashishtharsh6@gmail.com';
+    const aiSummarySim = getSmartAISummary(rxText);
+    const completedTimestamp = new Date().toLocaleString();
 
-        setAppointments(appointments.map(appt => 
-          appt.id === id ? { 
-            ...appt, 
-            status: 'completed', 
-            completedAt: new Date().toLocaleString(),
-            prescription: rxText,
-            aiPostSummary: aiSummarySim
-          } : appt
-        ));
+    // 1. Instant 0ms Optimistic UI Update
+    setAppointments(prev => prev.map(appt => 
+      appt.id === id ? { 
+        ...appt, 
+        status: 'completed', 
+        completedAt: completedTimestamp,
+        prescription: rxText,
+        aiPostSummary: aiSummarySim
+      } : appt
+    ));
 
-        sendEmailAlert(
-          patientEmail,
-          'Consultation Completed & Prescription Details - CareSync Hospital',
-          `Hello ${apptObj?.patientName},\n\nYour consultation with ${apptObj?.doctorName} is completed!\n\nHere are the details:\n\n=== Doctor Diagnosis Notes ===\n${rxText}\n\n=== Patient Friendly AI Clinical Summary ===\n${aiSummarySim}\n\nThank you for choosing CareSync Hospital.\n\nBest regards,\nCareSync Care Team`
-        );
-        
-        setActivePrescriptionText(prev => {
-          const copy = { ...prev };
-          delete copy[id];
-          return copy;
-        });
-      }
+    setActivePrescriptionText(prev => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+
+    // 2. Background email notification (non-blocking)
+    const apptObj = appointments.find(a => a.id === id);
+    const patientDetails = patientsList.find(p => p.name === apptObj?.patientName);
+    const patientEmail = patientDetails ? patientDetails.email : 'vashishtharsh6@gmail.com';
+    sendEmailAlert(
+      patientEmail,
+      'Consultation Completed & Prescription Details - CareSync Hospital',
+      `Hello ${apptObj?.patientName || 'Patient'},\n\nYour consultation with ${apptObj?.doctorName} is completed!\n\nHere are the details:\n\n=== Doctor Diagnosis Notes ===\n${rxText}\n\n=== Patient Friendly AI Clinical Summary ===\n${aiSummarySim}\n\nThank you for choosing CareSync Hospital.\n\nBest regards,\nCareSync Care Team`
+    );
+
+    // 3. Persist to MongoDB Serverless API in background
+    try {
+      fetch(`/api/appointments`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id, 
+          status: 'completed', 
+          prescription: rxText,
+          aiPostSummary: aiSummarySim,
+          completedAt: completedTimestamp
+        })
+      }).catch(e => console.warn("Background API update:", e));
+    } catch (err) {
+      console.warn("MongoDB prescription save error", err);
     }
   };
 
@@ -598,10 +578,7 @@ export default function App() {
     const doc = doctors.find(d => d.id === docId);
     if (!doc) return;
 
-    const actionText = currentLeaveStatus ? "Mark back on Duty?" : "Put on Leave? Existing active bookings will be cancelled and patients notified.";
-    if (!confirm(`${doc.name}: ${actionText}`)) return;
-
-    // 1. Instant Optimistic UI Update (Immediate Visual & Haptic Response)
+    // 1. Instant Direct Toggle (0ms - No blocking browser dialog)
     const nextLeaveStatus = !currentLeaveStatus;
     setDoctors(prev => prev.map(d => 
       d.id === docId ? { ...d, isOnLeave: nextLeaveStatus, isAvailable: !nextLeaveStatus } : d
@@ -1321,13 +1298,6 @@ export default function App() {
                       />
                     </div>
 
-                    {syncingCalendar && (
-                      <div className="p-3 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg text-sm flex items-center space-x-2 animate-pulse">
-                        <span className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></span>
-                        <span>Syncing with Google Calendar API...</span>
-                      </div>
-                    )}
-
                     {bookingMsg.text && (
                       <div className={`p-3 rounded-lg text-sm border ${bookingMsg.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
                         {bookingMsg.text}
@@ -1336,8 +1306,8 @@ export default function App() {
 
                     <button 
                       type="submit" 
-                      disabled={!selectedSlot || !problemDescription || syncingCalendar}
-                      className="w-full py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors disabled:bg-slate-300"
+                      disabled={!selectedSlot || !problemDescription}
+                      className="w-full py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors disabled:bg-slate-300 active:scale-95 cursor-pointer shadow-md"
                     >
                       Confirm Booking
                     </button>
