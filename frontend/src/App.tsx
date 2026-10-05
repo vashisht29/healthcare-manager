@@ -61,9 +61,25 @@ const INITIAL_DOCTORS: Doctor[] = [
 const INITIAL_APPOINTMENTS: Appointment[] = [];
 
 export default function App() {
-  const [showLanding, setShowLanding] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ name: string; email: string; role: 'patient' | 'doctor' | 'admin' } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ name: string; email: string; role: 'patient' | 'doctor' | 'admin' } | null>(() => {
+    try {
+      const savedUser = localStorage.getItem('caresync_current_user');
+      if (savedUser) return JSON.parse(savedUser);
+    } catch (e) {}
+    return null;
+  });
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    try {
+      return !!localStorage.getItem('caresync_current_user');
+    } catch (e) {}
+    return false;
+  });
+  const [showLanding, setShowLanding] = useState<boolean>(() => {
+    try {
+      return !localStorage.getItem('caresync_current_user');
+    } catch (e) {}
+    return true;
+  });
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot'>('login');
 
   // Forgot Password flow state variables
@@ -82,6 +98,17 @@ export default function App() {
   const [isRegistering, setIsRegistering] = useState(false);
 
   const API_BASE = ''; // Direct serverless API endpoints (/api/...) for lightning-fast 0ms response time
+
+  // Sync login session
+  useEffect(() => {
+    try {
+      if (isLoggedIn && currentUser) {
+        localStorage.setItem('caresync_current_user', JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem('caresync_current_user');
+      }
+    } catch (e) {}
+  }, [isLoggedIn, currentUser]);
 
   const [doctors, setDoctors] = useState<Doctor[]>(() => {
     try {
@@ -1056,7 +1083,7 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs mb-3">
-                  {/* Admin Fast Fill */}
+                  {/* Admin Fast Fill & Login */}
                   <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-2.5 flex justify-between items-center">
                     <div>
                       <strong className="block text-slate-900">Hospital Admin</strong>
@@ -1064,14 +1091,19 @@ export default function App() {
                     </div>
                     <button 
                       type="button" 
-                      onClick={() => { setEmailInput('admin@caresync.com'); setPasswordInput('AdminCareSync2026'); }}
-                      className="text-[11px] font-bold text-amber-700 hover:text-amber-900 bg-white border border-amber-300 px-2.5 py-1 rounded shadow-xs cursor-pointer active:scale-95 transition-all"
+                      onClick={() => {
+                        setEmailInput('admin@caresync.com');
+                        setPasswordInput('AdminCareSync2026');
+                        setCurrentUser({ name: 'Hospital Administration', email: 'admin@caresync.com', role: 'admin' });
+                        setIsLoggedIn(true);
+                      }}
+                      className="text-[11px] font-bold text-amber-800 hover:text-amber-950 bg-amber-100/80 hover:bg-amber-200 border border-amber-300 px-3 py-1.5 rounded-lg shadow-xs cursor-pointer active:scale-95 transition-all"
                     >
-                      Fill Admin
+                      Login Admin →
                     </button>
                   </div>
 
-                  {/* Patient Fast Fill */}
+                  {/* Patient Fast Fill & Login */}
                   <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-2.5 flex justify-between items-center">
                     <div>
                       <strong className="block text-slate-900">Demo Patient</strong>
@@ -1079,15 +1111,20 @@ export default function App() {
                     </div>
                     <button 
                       type="button" 
-                      onClick={() => { setEmailInput('patient@caresync.com'); setPasswordInput('patient123'); }}
-                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-white border border-emerald-300 px-2.5 py-1 rounded shadow-xs cursor-pointer active:scale-95 transition-all"
+                      onClick={() => {
+                        setEmailInput('patient@caresync.com');
+                        setPasswordInput('patient123');
+                        setCurrentUser({ name: 'Harsh Vashisht (Patient)', email: 'patient@caresync.com', role: 'patient' });
+                        setIsLoggedIn(true);
+                      }}
+                      className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-100/80 hover:bg-emerald-200 border border-emerald-300 px-3 py-1.5 rounded-lg shadow-xs cursor-pointer active:scale-95 transition-all"
                     >
-                      Fill Patient
+                      Login Patient →
                     </button>
                   </div>
                 </div>
 
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Doctors (Password: <code className="text-blue-600 bg-blue-50 px-1 py-0.5 rounded font-mono">caresync@doctor</code>)</p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Doctor Instant Login (Password: <code className="text-blue-600 bg-blue-50 px-1 py-0.5 rounded font-mono">caresync@doctor</code>)</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex justify-between items-center">
                     <div>
@@ -1096,10 +1133,15 @@ export default function App() {
                     </div>
                     <button 
                       type="button" 
-                      onClick={() => { setEmailInput('kabir@caresync.com'); setPasswordInput('caresync@doctor'); }}
-                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-white border border-slate-200 px-2 py-1 rounded shadow-xs cursor-pointer active:scale-95"
+                      onClick={() => {
+                        setEmailInput('kabir@caresync.com');
+                        setPasswordInput('caresync@doctor');
+                        setCurrentUser({ name: 'Dr. Kabir Malhotra', email: 'kabir@caresync.com', role: 'doctor' });
+                        setIsLoggedIn(true);
+                      }}
+                      className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1.5 rounded-lg shadow-xs cursor-pointer active:scale-95"
                     >
-                      Fill
+                      Login Dr. Kabir →
                     </button>
                   </div>
 
@@ -1110,10 +1152,15 @@ export default function App() {
                     </div>
                     <button 
                       type="button" 
-                      onClick={() => { setEmailInput('ananya@caresync.com'); setPasswordInput('caresync@doctor'); }}
-                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-white border border-slate-200 px-2 py-1 rounded shadow-xs cursor-pointer active:scale-95"
+                      onClick={() => {
+                        setEmailInput('ananya@caresync.com');
+                        setPasswordInput('caresync@doctor');
+                        setCurrentUser({ name: 'Dr. Ananya Sen', email: 'ananya@caresync.com', role: 'doctor' });
+                        setIsLoggedIn(true);
+                      }}
+                      className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1.5 rounded-lg shadow-xs cursor-pointer active:scale-95"
                     >
-                      Fill
+                      Login Dr. Ananya →
                     </button>
                   </div>
 
@@ -1124,10 +1171,15 @@ export default function App() {
                     </div>
                     <button 
                       type="button" 
-                      onClick={() => { setEmailInput('rohan@caresync.com'); setPasswordInput('caresync@doctor'); }}
-                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-white border border-slate-200 px-2 py-1 rounded shadow-xs cursor-pointer active:scale-95"
+                      onClick={() => {
+                        setEmailInput('rohan@caresync.com');
+                        setPasswordInput('caresync@doctor');
+                        setCurrentUser({ name: 'Dr. Rohan Mehra', email: 'rohan@caresync.com', role: 'doctor' });
+                        setIsLoggedIn(true);
+                      }}
+                      className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1.5 rounded-lg shadow-xs cursor-pointer active:scale-95"
                     >
-                      Fill
+                      Login Dr. Rohan →
                     </button>
                   </div>
 
@@ -1138,10 +1190,15 @@ export default function App() {
                     </div>
                     <button 
                       type="button" 
-                      onClick={() => { setEmailInput('sara@caresync.com'); setPasswordInput('caresync@doctor'); }}
-                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-white border border-slate-200 px-2 py-1 rounded shadow-xs cursor-pointer active:scale-95"
+                      onClick={() => {
+                        setEmailInput('sara@caresync.com');
+                        setPasswordInput('caresync@doctor');
+                        setCurrentUser({ name: 'Dr. Sara Khan', email: 'sara@caresync.com', role: 'doctor' });
+                        setIsLoggedIn(true);
+                      }}
+                      className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1.5 rounded-lg shadow-xs cursor-pointer active:scale-95"
                     >
-                      Fill
+                      Login Dr. Sara →
                     </button>
                   </div>
                 </div>
