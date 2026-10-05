@@ -245,11 +245,47 @@ export default function App() {
     setAuthError('');
     setIsLoggingIn(true);
 
+    const emailClean = emailInput.trim().toLowerCase();
+    const passClean = passwordInput.trim();
+
+    // 1. Instant check for Admin
+    if (emailClean === 'admin@caresync.com' && passClean === 'AdminCareSync2026') {
+      setIsLoggedIn(true);
+      setCurrentUser({ name: 'Hospital Administration', email: emailInput.trim(), role: 'admin' });
+      setIsLoggingIn(false);
+      return;
+    }
+
+    // 2. Instant check for Doctors (handles "doctor123" and any custom passwords)
+    const matchedDoctor = doctors.find(d => 
+      d.email.trim().toLowerCase() === emailClean && 
+      (d.password === passClean || passClean === 'doctor123')
+    );
+
+    if (matchedDoctor) {
+      setIsLoggedIn(true);
+      setCurrentUser({ name: matchedDoctor.name, email: matchedDoctor.email, role: 'doctor' });
+      setIsLoggingIn(false);
+      return;
+    }
+
+    // 3. Check registered patients or backend API
+    const matchedPatient = patientsList.find(p => 
+      p.email.trim().toLowerCase() === emailClean && p.passwordHash === passClean
+    );
+
+    if (matchedPatient) {
+      setIsLoggedIn(true);
+      setCurrentUser({ name: matchedPatient.name, email: matchedPatient.email, role: 'patient' });
+      setIsLoggingIn(false);
+      return;
+    }
+
     try {
       const res = await fetch(`/api/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', email: emailInput, password: passwordInput })
+        body: JSON.stringify({ action: 'login', email: emailClean, password: passClean })
       });
       const data = await res.json();
       if (data.success) {
@@ -262,19 +298,7 @@ export default function App() {
       setIsLoggingIn(false);
     } catch (err) {
       setIsLoggingIn(false);
-      // Graceful fallback for offline prototype testing on Vercel
-      if (emailInput === 'admin@caresync.com' && passwordInput === 'AdminCareSync2026') {
-        setIsLoggedIn(true);
-        setCurrentUser({ name: 'Hospital Administration', email: emailInput, role: 'admin' });
-        return;
-      }
-      const matchedDoctor = doctors.find(d => d.email === emailInput && d.password === passwordInput);
-      if (matchedDoctor) {
-        setIsLoggedIn(true);
-        setCurrentUser({ name: matchedDoctor.name, email: emailInput, role: 'doctor' });
-        return;
-      }
-      setAuthError('Connection to backend failed. Using local mockup accounts.');
+      setAuthError('Invalid email or password. Use email and password "doctor123" for doctors.');
     }
   };
 
@@ -992,6 +1016,24 @@ export default function App() {
                   )}
                 </button>
               </form>
+
+              {/* Quick Credentials Info Box */}
+              <div className="mt-6 pt-4 border-t border-slate-100">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Doctor Demo Login:</p>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-1 text-slate-600">
+                  <div className="flex justify-between items-center">
+                    <span>Email: <strong className="text-slate-800">aarav.sharma@hospital.com</strong></span>
+                    <button 
+                      type="button" 
+                      onClick={() => { setEmailInput('aarav.sharma@hospital.com'); setPasswordInput('doctor123'); }}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer underline"
+                    >
+                      Autofill
+                    </button>
+                  </div>
+                  <p>Password: <strong className="text-slate-800">doctor123</strong></p>
+                </div>
+              </div>
             </div>
           </div>
         )}
