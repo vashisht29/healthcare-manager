@@ -52,41 +52,13 @@ interface PatientUser {
 }
 
 const INITIAL_DOCTORS: Doctor[] = [
-  { id: 1, name: "Dr. Aarav Sharma", specialty: "Cardiologist", contact: "+91 98765 43210", email: "aarav.sharma@hospital.com", password: "doctor123", isAvailable: true, isOnLeave: false, slots: ["10:00 AM", "11:30 AM", "02:00 PM"] },
-  { id: 2, name: "Dr. Priya Patel", specialty: "Dermatologist", contact: "+91 98765 43211", email: "priya.patel@hospital.com", password: "doctor123", isAvailable: true, isOnLeave: false, slots: ["10:00 AM", "02:00 PM", "03:30 PM"] },
-  { id: 3, name: "Dr. Amit Verma", specialty: "Pediatrician", contact: "+91 98765 43212", email: "amit.verma@hospital.com", password: "doctor123", isAvailable: true, isOnLeave: false, slots: ["11:30 AM", "03:30 PM"] },
-  { id: 4, name: "Dr. Neha Gupta", specialty: "General Physician", contact: "+91 98765 43213", email: "neha.gupta@hospital.com", password: "doctor123", isAvailable: false, isOnLeave: true, slots: ["10:00 AM", "11:30 AM"] }
+  { id: 1, name: "Dr. Kabir Malhotra", specialty: "Cardiologist", contact: "+91 98111 22233", email: "kabir@caresync.com", password: "caresync@doctor", isAvailable: true, isOnLeave: false, slots: ["10:00 AM", "11:30 AM", "02:00 PM"] },
+  { id: 2, name: "Dr. Ananya Sen", specialty: "Dermatologist", contact: "+91 98222 33344", email: "ananya@caresync.com", password: "caresync@doctor", isAvailable: true, isOnLeave: false, slots: ["10:00 AM", "02:00 PM", "03:30 PM"] },
+  { id: 3, name: "Dr. Rohan Mehra", specialty: "Pediatrician", contact: "+91 98333 44455", email: "rohan@caresync.com", password: "caresync@doctor", isAvailable: true, isOnLeave: false, slots: ["11:30 AM", "03:30 PM"] },
+  { id: 4, name: "Dr. Sara Khan", specialty: "General Physician", contact: "+91 98444 55566", email: "sara@caresync.com", password: "caresync@doctor", isAvailable: true, isOnLeave: false, slots: ["10:00 AM", "11:30 AM", "04:00 PM"] }
 ];
 
-const INITIAL_APPOINTMENTS: Appointment[] = [
-  {
-    id: 101,
-    patientName: "Rajesh Kumar",
-    patientContact: "+91 99887 76655",
-    doctorName: "Dr. Aarav Sharma",
-    specialty: "Cardiologist",
-    slotTime: "2026-08-25 10:00 AM",
-    problem: "Chest discomfort during morning walks.",
-    status: "completed",
-    createdAt: "2026-08-23 09:15 AM",
-    completedAt: "2026-08-23 11:45 AM",
-    calendarSynced: true,
-    prescription: "Aspirin 75mg once daily after breakfast. Rest for 3 days.",
-    aiPostSummary: "✨ AI Clinical Insights:\n• Clinical Goal: Recover from chest discomfort.\n• Medication Schedule: Take Aspirin (75mg) daily after breakfast.\n• Advice: Complete bed rest for 3 days; avoid dynamic exercise.\n• Reminder status: Notification jobs successfully configured in outbox."
-  },
-  {
-    id: 102,
-    patientName: "Rajesh Kumar",
-    patientContact: "+91 99887 76655",
-    doctorName: "Dr. Priya Patel",
-    specialty: "Dermatologist",
-    slotTime: "2026-08-26 02:00 PM",
-    problem: "Skin rashes on lower arms.",
-    status: "booked",
-    createdAt: "2026-08-23 02:30 PM",
-    calendarSynced: true
-  }
-];
+const INITIAL_APPOINTMENTS: Appointment[] = [];
 
 export default function App() {
   const [showLanding, setShowLanding] = useState(true);
@@ -256,10 +228,11 @@ export default function App() {
       return;
     }
 
-    // 2. Instant check for Doctors (handles "doctor123" and any custom passwords)
-    const matchedDoctor = doctors.find(d => 
+    // 2. Instant check for Doctors (handles "caresync@doctor" and custom passwords)
+    const allDocs = [...doctors, ...INITIAL_DOCTORS];
+    const matchedDoctor = allDocs.find(d => 
       d.email.trim().toLowerCase() === emailClean && 
-      (d.password === passClean || passClean === 'doctor123')
+      (d.password === passClean || passClean === 'caresync@doctor' || passClean === 'doctor123')
     );
 
     if (matchedDoctor) {
@@ -1019,19 +992,63 @@ export default function App() {
 
               {/* Quick Credentials Info Box */}
               <div className="mt-6 pt-4 border-t border-slate-100">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Doctor Demo Login:</p>
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-1 text-slate-600">
-                  <div className="flex justify-between items-center">
-                    <span>Email: <strong className="text-slate-800">aarav.sharma@hospital.com</strong></span>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Doctor Portal Logins (Shared Password: <code className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-mono">caresync@doctor</code>)</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex justify-between items-center">
+                    <div>
+                      <strong className="block text-slate-850">Dr. Kabir (Cardio)</strong>
+                      <span className="text-[11px] text-slate-500">kabir@caresync.com</span>
+                    </div>
                     <button 
                       type="button" 
-                      onClick={() => { setEmailInput('aarav.sharma@hospital.com'); setPasswordInput('doctor123'); }}
-                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer underline"
+                      onClick={() => { setEmailInput('kabir@caresync.com'); setPasswordInput('caresync@doctor'); }}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-white border border-slate-200 px-2 py-1 rounded shadow-xs cursor-pointer active:scale-95"
                     >
-                      Autofill
+                      Fill
                     </button>
                   </div>
-                  <p>Password: <strong className="text-slate-800">doctor123</strong></p>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex justify-between items-center">
+                    <div>
+                      <strong className="block text-slate-850">Dr. Ananya (Derma)</strong>
+                      <span className="text-[11px] text-slate-500">ananya@caresync.com</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => { setEmailInput('ananya@caresync.com'); setPasswordInput('caresync@doctor'); }}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-white border border-slate-200 px-2 py-1 rounded shadow-xs cursor-pointer active:scale-95"
+                    >
+                      Fill
+                    </button>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex justify-between items-center">
+                    <div>
+                      <strong className="block text-slate-850">Dr. Rohan (Pediatric)</strong>
+                      <span className="text-[11px] text-slate-500">rohan@caresync.com</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => { setEmailInput('rohan@caresync.com'); setPasswordInput('caresync@doctor'); }}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-white border border-slate-200 px-2 py-1 rounded shadow-xs cursor-pointer active:scale-95"
+                    >
+                      Fill
+                    </button>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex justify-between items-center">
+                    <div>
+                      <strong className="block text-slate-850">Dr. Sara (Physician)</strong>
+                      <span className="text-[11px] text-slate-500">sara@caresync.com</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => { setEmailInput('sara@caresync.com'); setPasswordInput('caresync@doctor'); }}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-white border border-slate-200 px-2 py-1 rounded shadow-xs cursor-pointer active:scale-95"
+                    >
+                      Fill
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

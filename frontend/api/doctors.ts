@@ -2,10 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToDatabase } from './db.js';
 
 const INITIAL_DOCTORS = [
-  { id: 1, name: "Dr. Aarav Sharma", specialty: "Cardiologist", contact: "+91 98765 43210", email: "aarav.sharma@hospital.com", password: "doctor123", isAvailable: true, isOnLeave: false, slots: ["10:00 AM", "11:30 AM", "02:00 PM"] },
-  { id: 2, name: "Dr. Priya Patel", specialty: "Dermatologist", contact: "+91 98765 43211", email: "priya.patel@hospital.com", password: "doctor123", isAvailable: true, isOnLeave: false, slots: ["10:00 AM", "02:00 PM", "03:30 PM"] },
-  { id: 3, name: "Dr. Amit Verma", specialty: "Pediatrician", contact: "+91 98765 43212", email: "amit.verma@hospital.com", password: "doctor123", isAvailable: true, isOnLeave: false, slots: ["11:30 AM", "03:30 PM"] },
-  { id: 4, name: "Dr. Neha Gupta", specialty: "General Physician", contact: "+91 98765 43213", email: "neha.gupta@hospital.com", password: "doctor123", isAvailable: false, isOnLeave: true, slots: ["10:00 AM", "11:30 AM"] }
+  { id: 1, name: "Dr. Kabir Malhotra", specialty: "Cardiologist", contact: "+91 98111 22233", email: "kabir@caresync.com", password: "caresync@doctor", isAvailable: true, isOnLeave: false, slots: ["10:00 AM", "11:30 AM", "02:00 PM"] },
+  { id: 2, name: "Dr. Ananya Sen", specialty: "Dermatologist", contact: "+91 98222 33344", email: "ananya@caresync.com", password: "caresync@doctor", isAvailable: true, isOnLeave: false, slots: ["10:00 AM", "02:00 PM", "03:30 PM"] },
+  { id: 3, name: "Dr. Rohan Mehra", specialty: "Pediatrician", contact: "+91 98333 44455", email: "rohan@caresync.com", password: "caresync@doctor", isAvailable: true, isOnLeave: false, slots: ["11:30 AM", "03:30 PM"] },
+  { id: 4, name: "Dr. Sara Khan", specialty: "General Physician", contact: "+91 98444 55566", email: "sara@caresync.com", password: "caresync@doctor", isAvailable: true, isOnLeave: false, slots: ["10:00 AM", "11:30 AM", "04:00 PM"] }
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

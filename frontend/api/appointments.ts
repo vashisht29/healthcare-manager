@@ -1,35 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectToDatabase } from './db.js';
 
-const INITIAL_APPOINTMENTS = [
-  {
-    id: 101,
-    patientName: "Rajesh Kumar",
-    patientContact: "+91 99887 76655",
-    doctorName: "Dr. Aarav Sharma",
-    specialty: "Cardiologist",
-    slotTime: "2026-08-25 10:00 AM",
-    problem: "Chest discomfort during morning walks.",
-    status: "completed",
-    createdAt: "2026-08-23 09:15 AM",
-    completedAt: "2026-08-23 11:45 AM",
-    calendarSynced: true,
-    prescription: "Aspirin 75mg once daily after breakfast. Rest for 3 days.",
-    aiPostSummary: "✨ AI Clinical Insights:\n• Clinical Goal: Recover from chest discomfort.\n• Medication Schedule: Take Aspirin (75mg) daily after breakfast.\n• Advice: Complete bed rest for 3 days; avoid dynamic exercise.\n• Reminder status: Notification jobs successfully configured in outbox."
-  },
-  {
-    id: 102,
-    patientName: "Rajesh Kumar",
-    patientContact: "+91 99887 76655",
-    doctorName: "Dr. Priya Patel",
-    specialty: "Dermatologist",
-    slotTime: "2026-08-26 02:00 PM",
-    problem: "Skin rashes on lower arms.",
-    status: "booked",
-    createdAt: "2026-08-23 02:30 PM",
-    calendarSynced: true
-  }
-];
+const INITIAL_APPOINTMENTS: any[] = [];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
