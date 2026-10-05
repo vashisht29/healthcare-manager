@@ -441,18 +441,17 @@ export default function App() {
   };
 
   const handleDeleteAppointment = async (id: number) => {
-    if (confirm("Delete this appointment entry permanently from the database?")) {
-      try {
-        const res = await fetch(`/api/appointments?id=${id}`, {
-          method: 'DELETE'
-        });
-        const data = await res.json();
-        if (data.success) {
-          refreshData();
-        }
-      } catch (err) {
-        setAppointments(appointments.filter(a => a.id !== id));
-      }
+    if (!confirm("Delete this appointment entry permanently from the database?")) return;
+
+    // Instant Optimistic Removal from UI
+    setAppointments(prev => prev.filter(a => a.id !== id));
+
+    try {
+      await fetch(`/api/appointments?id=${id}`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.warn("Deleted appointment in memory fallback", err);
     }
   };
 
@@ -551,50 +550,44 @@ export default function App() {
       return;
     }
 
+    const formattedName = newDocName.startsWith("Dr. ") ? newDocName : `Dr. ${newDocName}`;
+    const newDoc: Doctor = {
+      id: Date.now(),
+      name: formattedName,
+      specialty: newDocSpecialty,
+      contact: newDocContact,
+      email: newDocEmail,
+      password: newDocPassword,
+      isAvailable: true,
+      isOnLeave: false,
+      slots: ["10:00 AM", "11:30 AM", "02:00 PM", "03:30 PM"]
+    };
+
+    // 1. Instant Optimistic UI Addition
+    setDoctors(prev => [...prev, newDoc]);
+    setNewDocName('');
+    setNewDocSpecialty('');
+    setNewDocContact('');
+    setNewDocEmail('');
+    setNewDocPassword('');
+    setAdminMsg('✓ Doctor profile added successfully!');
+    setTimeout(() => setAdminMsg(''), 4000);
+
+    // 2. Persist to MongoDB Serverless API
     try {
-      const res = await fetch(`/api/doctors`, {
+      await fetch(`/api/doctors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: newDocName,
-          specialty: newDocSpecialty,
-          contact: newDocContact,
-          email: newDocEmail,
-          password: newDocPassword
+          name: formattedName,
+          specialty: newDoc.specialty,
+          contact: newDoc.contact,
+          email: newDoc.email,
+          password: newDoc.password
         })
       });
-      const data = await res.json();
-      if (data.success) {
-        setAdminMsg('New doctor profile added successfully!');
-        refreshData();
-        setNewDocName('');
-        setNewDocSpecialty('');
-        setNewDocContact('');
-        setNewDocEmail('');
-        setNewDocPassword('');
-      } else {
-        setAdminMsg(data.message || 'Failed to add doctor.');
-      }
     } catch (err) {
-      // Local fallback
-      const newDoc: Doctor = {
-        id: Date.now(),
-        name: newDocName.startsWith("Dr. ") ? newDocName : `Dr. ${newDocName}`,
-        specialty: newDocSpecialty,
-        contact: newDocContact,
-        email: newDocEmail,
-        password: newDocPassword,
-        isAvailable: true,
-        isOnLeave: false,
-        slots: ["10:00 AM", "11:30 AM", "02:00 PM", "03:30 PM"]
-      };
-      setDoctors([...doctors, newDoc]);
-      setNewDocName('');
-      setNewDocSpecialty('');
-      setNewDocContact('');
-      setNewDocEmail('');
-      setNewDocPassword('');
-      setAdminMsg('New doctor profile added successfully!');
+      console.warn("MongoDB API offline fallback; saved in local state.", err);
     }
   };
 
@@ -603,30 +596,34 @@ export default function App() {
     if (!doc) return;
 
     const actionText = currentLeaveStatus ? "Mark back on Duty?" : "Put on Leave? Existing active bookings will be cancelled and patients notified.";
-    if (confirm(`${doc.name}: ${actionText}`)) {
-      try {
-        const res = await fetch(`/api/doctors`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: docId, isOnLeave: !currentLeaveStatus })
-        });
-        const data = await res.json();
-        if (data.success) {
-          refreshData();
-        }
-      } catch (err) {
-        // Local fallback
-        setDoctors(doctors.map(d => 
-          d.id === docId ? { ...d, isOnLeave: !currentLeaveStatus, isAvailable: currentLeaveStatus } : d
-        ));
-        if (!currentLeaveStatus) {
-          setAppointments(appointments.map(appt => 
-            (appt.doctorName === doc.name && appt.status === 'booked')
-              ? { ...appt, status: 'cancelled', calendarSynced: false }
-              : appt
-          ));
-        }
+    if (!confirm(`${doc.name}: ${actionText}`)) return;
+
+    // 1. Instant Optimistic UI Update (Immediate Visual & Haptic Response)
+    const nextLeaveStatus = !currentLeaveStatus;
+    setDoctors(prev => prev.map(d => 
+      d.id === docId ? { ...d, isOnLeave: nextLeaveStatus, isAvailable: !nextLeaveStatus } : d
+    ));
+    if (nextLeaveStatus) {
+      setAppointments(prev => prev.map(appt => 
+        (appt.doctorName === doc.name && appt.status === 'booked')
+          ? { ...appt, status: 'cancelled', calendarSynced: false }
+          : appt
+      ));
+    }
+
+    // 2. Persist to MongoDB Serverless API
+    try {
+      const res = await fetch(`/api/doctors`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: docId, isOnLeave: nextLeaveStatus })
+      });
+      const data = await res.json();
+      if (!data.success && data.message) {
+        console.warn("MongoDB update notification:", data.message);
       }
+    } catch (err) {
+      console.warn("MongoDB offline fallback; updated in memory.", err);
     }
   };
 
@@ -634,37 +631,35 @@ export default function App() {
     const doc = doctors.find(d => d.name === doctorName);
     if (!doc) return;
 
+    // Instant Optimistic UI
+    const nextStatus = !currentStatus;
+    setDoctors(prev => prev.map(d => 
+      d.name === doctorName ? { ...d, isAvailable: nextStatus } : d
+    ));
+
     try {
-      const res = await fetch(`/api/doctors`, {
+      await fetch(`/api/doctors`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: doc.id, isAvailable: !currentStatus })
+        body: JSON.stringify({ id: doc.id, isAvailable: nextStatus })
       });
-      const data = await res.json();
-      if (data.success) {
-        refreshData();
-      }
     } catch (err) {
-      // Local fallback
-      setDoctors(doctors.map(d => 
-        d.name === doctorName ? { ...d, isAvailable: !currentStatus } : d
-      ));
+      console.warn("MongoDB duty status fallback", err);
     }
   };
 
   const handleDeleteDoctor = async (docId: number, docName: string) => {
-    if (confirm(`Are you sure you want to remove ${docName} from the database?`)) {
-      try {
-        const res = await fetch(`/api/doctors?id=${docId}`, {
-          method: 'DELETE'
-        });
-        const data = await res.json();
-        if (data.success) {
-          refreshData();
-        }
-      } catch (err) {
-        setDoctors(doctors.filter(d => d.id !== docId));
-      }
+    if (!confirm(`Are you sure you want to remove ${docName} from the database?`)) return;
+
+    // Instant Optimistic Removal from UI
+    setDoctors(prev => prev.filter(d => d.id !== docId));
+
+    try {
+      await fetch(`/api/doctors?id=${docId}`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.warn("Doctor deleted in memory fallback", err);
     }
   };
 
@@ -1696,7 +1691,7 @@ export default function App() {
 
                   <button 
                     type="submit" 
-                    className="w-full py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors"
+                    className="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-all duration-150 active:scale-95 cursor-pointer shadow-md hover:shadow-lg"
                   >
                     Add Doctor Profile
                   </button>
@@ -1734,14 +1729,14 @@ export default function App() {
                             <td className="px-4 py-4 text-right whitespace-nowrap space-x-2">
                               <button 
                                 onClick={() => toggleDoctorLeave(doc.id, doc.isOnLeave)}
-                                className={`text-xs font-bold px-2.5 py-1 rounded border transition-colors ${doc.isOnLeave ? 'bg-green-55 border-green-300 text-green-700 hover:bg-green-100' : 'bg-red-50 border-red-300 text-red-750 hover:bg-red-100'}`}
+                                className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-all active:scale-95 cursor-pointer shadow-xs ${doc.isOnLeave ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100' : 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100'}`}
                               >
                                 {doc.isOnLeave ? 'Set Active Duty' : 'Mark On Leave'}
                               </button>
                               <button
                                 onClick={() => handleDeleteDoctor(doc.id, doc.name)}
                                 title="Delete Doctor Record"
-                                className="inline-flex items-center text-xs font-bold px-2 py-1 rounded border border-slate-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                                className="inline-flex items-center text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 transition-all active:scale-95 cursor-pointer shadow-xs"
                               >
                                 <Trash2 className="h-3.5 w-3.5 mr-1" />
                                 Delete
@@ -1807,12 +1802,12 @@ export default function App() {
                             </td>
                             <td className="px-4 py-4 text-right whitespace-nowrap space-x-2">
                               {appt.status === 'booked' && (
-                                <button onClick={() => handleCancel(appt.id)} className="text-xs font-bold text-amber-700 hover:text-amber-900 bg-amber-50 px-2 py-1 rounded border border-amber-200">Cancel</button>
+                                <button onClick={() => handleCancel(appt.id)} className="text-xs font-bold text-amber-700 hover:text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 transition-all active:scale-95 cursor-pointer">Cancel</button>
                               )}
                               <button
                                 onClick={() => handleDeleteAppointment(appt.id)}
                                 title="Delete Audit Record"
-                                className="inline-flex items-center text-xs font-bold px-2 py-1 rounded border border-slate-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                                className="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-lg border border-slate-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 transition-all active:scale-95 cursor-pointer"
                               >
                                 <Trash2 className="h-3.5 w-3.5 mr-1" />
                                 Delete
