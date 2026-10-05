@@ -31,6 +31,7 @@ interface Doctor {
 interface Appointment {
   id: number;
   patientName: string;
+  patientEmail?: string;
   patientContact: string;
   doctorName: string;
   specialty: string;
@@ -192,7 +193,7 @@ export default function App() {
     }
   };
 
-  // Load and refresh data from MongoDB in background
+  // Load and refresh data from MongoDB in background with Intelligent Merge
   const refreshData = async () => {
     try {
       const controller = new AbortController();
@@ -207,14 +208,31 @@ export default function App() {
       if (docRes.ok) {
         const docsData = await docRes.json();
         if (Array.isArray(docsData) && docsData.length > 0) {
-          setDoctors(docsData);
+          // Merge remote doctors while keeping local overrides (e.g. leave status, added doctors)
+          setDoctors(localDocs => {
+            const docMap = new Map(localDocs.map(d => [d.id, d]));
+            docsData.forEach((remoteDoc: Doctor) => {
+              if (!docMap.has(remoteDoc.id)) {
+                docMap.set(remoteDoc.id, remoteDoc);
+              }
+            });
+            return Array.from(docMap.values());
+          });
         }
       }
 
       if (apptRes.ok) {
         const apptsData = await apptRes.json();
         if (Array.isArray(apptsData) && apptsData.length > 0) {
-          setAppointments(apptsData);
+          setAppointments(localAppts => {
+            const apptMap = new Map(localAppts.map(a => [a.id, a]));
+            apptsData.forEach((remoteAppt: Appointment) => {
+              if (!apptMap.has(remoteAppt.id)) {
+                apptMap.set(remoteAppt.id, remoteAppt);
+              }
+            });
+            return Array.from(apptMap.values());
+          });
         }
       }
     } catch (err) {
@@ -379,6 +397,13 @@ export default function App() {
       });
       const data = await res.json();
       if (data.success) {
+        const newPatient: PatientUser = {
+          name: nameInput,
+          email: emailInput,
+          contact: contactInput,
+          passwordHash: passwordInput
+        };
+        setPatientsList(prev => [...prev.filter(p => p.email !== newPatient.email), newPatient]);
         setIsLoggedIn(true);
         setCurrentUser({ name: nameInput, email: emailInput, role: 'patient' });
         refreshData();
@@ -395,7 +420,7 @@ export default function App() {
         contact: contactInput,
         passwordHash: passwordInput
       };
-      setPatientsList([...patientsList, newPatient]);
+      setPatientsList(prev => [...prev.filter(p => p.email !== newPatient.email), newPatient]);
       setIsLoggedIn(true);
       setCurrentUser({ name: newPatient.name, email: newPatient.email, role: 'patient' });
 
@@ -441,6 +466,7 @@ export default function App() {
     const newAppt: Appointment = {
       id: Date.now(),
       patientName: currentUser.name,
+      patientEmail: currentUser.email,
       patientContact: contactInput || "+91 99887 76655",
       doctorName: doc?.name || "Specialist",
       specialty: doc?.specialty || selectedSpecialty,
@@ -472,6 +498,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           patientName: currentUser.name,
+          patientEmail: currentUser.email,
           patientContact: contactInput || "+91 99887 76655",
           doctorName: doc?.name || "Specialist",
           specialty: doc?.specialty || selectedSpecialty,
@@ -494,7 +521,7 @@ export default function App() {
     // 2. Non-blocking cancellation email
     if (appt && currentUser) {
       sendEmailAlert(
-        currentUser.email,
+        appt.patientEmail || currentUser.email,
         'Appointment Cancelled - CareSync Hospital',
         `Hello ${appt.patientName},\n\nYour appointment with ${appt.doctorName} scheduled for ${appt.slotTime} has been successfully cancelled.\n\nThe corresponding Google Calendar event has been removed.\n\nBest regards,\nCareSync Scheduling Portal`
       );
@@ -580,12 +607,11 @@ export default function App() {
       return copy;
     });
 
-    // 2. Background email notification (non-blocking)
+    // 2. Background email notification (non-blocking) to the exact patient
     const apptObj = appointments.find(a => a.id === id);
-    const patientDetails = patientsList.find(p => p.name === apptObj?.patientName);
-    const patientEmail = patientDetails ? patientDetails.email : 'vashishtharsh6@gmail.com';
+    const targetEmail = apptObj?.patientEmail || patientsList.find(p => p.name === apptObj?.patientName)?.email || 'vashishtharsh6@gmail.com';
     sendEmailAlert(
-      patientEmail,
+      targetEmail,
       'Consultation Completed & Prescription Details - CareSync Hospital',
       `Hello ${apptObj?.patientName || 'Patient'},\n\nYour consultation with ${apptObj?.doctorName} is completed!\n\nHere are the details:\n\n=== Doctor Diagnosis Notes ===\n${rxText}\n\n=== Patient Friendly AI Clinical Summary ===\n${aiSummarySim}\n\nThank you for choosing CareSync Hospital.\n\nBest regards,\nCareSync Care Team`
     );
