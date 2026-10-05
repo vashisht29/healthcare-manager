@@ -293,7 +293,14 @@ export default function App() {
       return;
     }
 
-    // 3. Check registered patients from local state / storage
+    // 3. Instant check for Demo Patient or registered patients from local state / storage
+    if (emailClean === 'patient@caresync.com' && (passClean === 'patient123' || passClean === 'caresync@patient')) {
+      setIsLoggedIn(true);
+      setCurrentUser({ name: 'Harsh Vashisht (Demo Patient)', email: emailClean, role: 'patient' });
+      setIsLoggingIn(false);
+      return;
+    }
+
     const matchedPatient = patientsList.find(p => 
       p.email.trim().toLowerCase() === emailClean && p.passwordHash === passClean
     );
@@ -1043,7 +1050,44 @@ export default function App() {
 
               {/* Quick Credentials Info Box */}
               <div className="mt-6 pt-4 border-t border-slate-100">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Doctor Portal Logins (Shared Password: <code className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-mono">caresync@doctor</code>)</p>
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Quick Fill Test Logins</p>
+                  <span className="text-[11px] text-blue-600 font-medium">1-Click Auto-Fill</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs mb-3">
+                  {/* Admin Fast Fill */}
+                  <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-2.5 flex justify-between items-center">
+                    <div>
+                      <strong className="block text-slate-900">Hospital Admin</strong>
+                      <span className="text-[11px] text-slate-600">admin@caresync.com</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => { setEmailInput('admin@caresync.com'); setPasswordInput('AdminCareSync2026'); }}
+                      className="text-[11px] font-bold text-amber-700 hover:text-amber-900 bg-white border border-amber-300 px-2.5 py-1 rounded shadow-xs cursor-pointer active:scale-95 transition-all"
+                    >
+                      Fill Admin
+                    </button>
+                  </div>
+
+                  {/* Patient Fast Fill */}
+                  <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-2.5 flex justify-between items-center">
+                    <div>
+                      <strong className="block text-slate-900">Demo Patient</strong>
+                      <span className="text-[11px] text-slate-600">patient@caresync.com</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => { setEmailInput('patient@caresync.com'); setPasswordInput('patient123'); }}
+                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-white border border-emerald-300 px-2.5 py-1 rounded shadow-xs cursor-pointer active:scale-95 transition-all"
+                    >
+                      Fill Patient
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Doctors (Password: <code className="text-blue-600 bg-blue-50 px-1 py-0.5 rounded font-mono">caresync@doctor</code>)</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex justify-between items-center">
                     <div>
