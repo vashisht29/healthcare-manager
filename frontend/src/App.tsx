@@ -148,13 +148,17 @@ export default function App() {
     }
   };
 
-  // Load and refresh data from MongoDB via Serverless API in parallel
+  // Load and refresh data from MongoDB with 1.5s fast timeout to prevent UI freeze
   const refreshData = async () => {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
+
       const [docRes, apptRes] = await Promise.all([
-        fetch(`/api/doctors`),
-        fetch(`/api/appointments`)
+        fetch(`/api/doctors`, { signal: controller.signal }),
+        fetch(`/api/appointments`, { signal: controller.signal })
       ]);
+      clearTimeout(timeoutId);
 
       if (docRes.ok) {
         const docsData = await docRes.json();
@@ -166,7 +170,8 @@ export default function App() {
         if (Array.isArray(apptsData)) setAppointments(apptsData);
       }
     } catch (err) {
-      console.warn("API fallback to local state", err);
+      // Instant graceful fallback - never freezes
+      console.warn("Fast API fallback active");
     }
   };
 
@@ -379,35 +384,33 @@ export default function App() {
         setBookingMsg({ text: data.message || 'Booking failed', type: 'error' });
       }
     } catch (err) {
-      // Local fallback
+      // Local fallback - Instant
       const doc = doctors.find(d => d.id === selectedDoctorId);
       if (!doc) return;
-      setTimeout(() => {
-        const newAppt: Appointment = {
-          id: Date.now(),
-          patientName: currentUser.name,
-          patientContact: "+91 99887 76655",
-          doctorName: doc.name,
-          specialty: doc.specialty,
-          slotTime: `2026-08-25 ${selectedSlot}`,
-          problem: problemDescription,
-          status: 'booked',
-          createdAt: new Date().toLocaleString(),
-          calendarSynced: true
-        };
-        setAppointments([newAppt, ...appointments]);
-        setSyncingCalendar(false);
-        setBookingMsg({ text: 'Booking completed & synced with Google Calendar!', type: 'success' });
+      const newAppt: Appointment = {
+        id: Date.now(),
+        patientName: currentUser.name,
+        patientContact: "+91 99887 76655",
+        doctorName: doc.name,
+        specialty: doc.specialty,
+        slotTime: `2026-08-25 ${selectedSlot}`,
+        problem: problemDescription,
+        status: 'booked',
+        createdAt: new Date().toLocaleString(),
+        calendarSynced: true
+      };
+      setAppointments([newAppt, ...appointments]);
+      setSyncingCalendar(false);
+      setBookingMsg({ text: 'Booking completed & synced with Google Calendar!', type: 'success' });
 
-        sendEmailAlert(
-          currentUser.email,
-          'Appointment Booking Confirmed - CareSync Hospital',
-          `Hello ${currentUser.name},\n\nYour medical appointment has been successfully scheduled with ${doc.name} (${doc.specialty})!\n\nSlot Timing: 2026-08-25 ${selectedSlot}\nSymptom Chief Complaint: "${problemDescription}"\n\nA Google Calendar invitation has been automatically synced to both you and the specialist.\n\nBest regards,\nCareSync Scheduling Portal`
-        );
+      sendEmailAlert(
+        currentUser.email,
+        'Appointment Booking Confirmed - CareSync Hospital',
+        `Hello ${currentUser.name},\n\nYour medical appointment has been successfully scheduled with ${doc.name} (${doc.specialty})!\n\nSlot Timing: 2026-08-25 ${selectedSlot}\nSymptom Chief Complaint: "${problemDescription}"\n\nA Google Calendar invitation has been automatically synced to both you and the specialist.\n\nBest regards,\nCareSync Scheduling Portal`
+      );
 
-        setSelectedSlot('');
-        setProblemDescription('');
-      }, 1000);
+      setSelectedSlot('');
+      setProblemDescription('');
     }
   };
 
