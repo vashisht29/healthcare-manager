@@ -193,48 +193,88 @@ export default function App() {
     }
   };
 
-  // Helper for generating gorgeous clinical emails
+  // Helper for generating gorgeous clinical emails with enterprise inline styles (Gmail/Outlook/Mobile optimized)
   const getEmailHtml = (title: string, badgeText: string, badgeColor: string, patientName: string, contentHtml: string, footerNote?: string) => {
+    const badgeBg = badgeColor === 'green' ? '#dcfce7' : badgeColor === 'red' ? '#fee2e2' : '#dbeafe';
+    const badgeTextCol = badgeColor === 'green' ? '#15803d' : badgeColor === 'red' ? '#b91c1c' : '#1d4ed8';
+    const badgeBorder = badgeColor === 'green' ? '#bbf7d0' : badgeColor === 'red' ? '#fecaca' : '#bfdbfe';
+
     return `
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
       <head>
         <meta charset="utf-8">
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
-          .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-          .header { background: linear-gradient(135deg, #2563eb, #1d4ed8); padding: 32px 24px; text-align: center; color: #ffffff; }
-          .header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
-          .header p { margin: 6px 0 0; font-size: 13px; opacity: 0.9; }
-          .content { padding: 32px 28px; }
-          .badge { display: inline-block; padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px; }
-          .card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0; }
-          .row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
-          .label { color: #64748b; font-weight: 600; }
-          .val { color: #0f172a; font-weight: 700; }
-          .footer { background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
-        </style>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
       </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>CareSync Hospital</h1>
-            <p>Smart Medical Care & Clinical Follow-up</p>
-          </div>
-          <div class="content">
-            <span class="badge" style="background-color: ${badgeColor === 'green' ? '#dcfce7' : badgeColor === 'red' ? '#fee2e2' : '#dbeafe'}; color: ${badgeColor === 'green' ? '#15803d' : badgeColor === 'red' ? '#b91c1c' : '#1d4ed8'};">
-              ${badgeText}
-            </span>
-            <h2 style="font-size: 18px; margin-top: 0; color: #0f172a;">${title}</h2>
-            <p style="font-size: 14px; line-height: 1.6; color: #334155;">Hello <strong>${patientName}</strong>,</p>
-            ${contentHtml}
-            ${footerNote ? `<p style="font-size: 13px; color: #64748b; margin-top: 24px; font-style: italic;">${footerNote}</p>` : ''}
-          </div>
-          <div class="footer">
-            CareSync Hospital Clinical Center &bull; Automated Patient Portal Notice<br/>
-            Need assistance? Reach out to support@caresync.com
-          </div>
-        </div>
+      <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 30px 15px;">
+          <tr>
+            <td align="center">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 620px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04); border: 1px solid #e2e8f0;">
+                
+                <!-- HEADER BRANDING -->
+                <tr>
+                  <td style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%); padding: 36px 32px; text-align: center;">
+                    <div style="display: inline-block; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;">
+                      <span style="font-size: 24px; vertical-align: middle;">🏥</span>
+                      <span style="color: #ffffff; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; vertical-align: middle; margin-left: 8px;">CareSync Hospital</span>
+                    </div>
+                    <p style="margin: 0; font-size: 13px; color: #cbd5e1; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600;">Premier Clinical Management & Automated Patient Care</p>
+                  </td>
+                </tr>
+
+                <!-- MAIN BODY -->
+                <tr>
+                  <td style="padding: 36px 32px 28px 32px;">
+                    <!-- STATUS BADGE -->
+                    <div style="margin-bottom: 20px;">
+                      <span style="display: inline-block; background-color: ${badgeBg}; color: ${badgeTextCol}; border: 1px solid ${badgeBorder}; padding: 6px 14px; font-size: 11px; font-weight: 800; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.8px;">
+                        ● ${badgeText}
+                      </span>
+                    </div>
+
+                    <h2 style="margin: 0 0 16px; font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1.3;">
+                      ${title}
+                    </h2>
+
+                    <p style="font-size: 15px; line-height: 1.6; color: #334155; margin: 0 0 20px;">
+                      Dear <strong>${patientName}</strong>,
+                    </p>
+
+                    <!-- DYNAMIC CONTENT -->
+                    ${contentHtml}
+
+                    ${footerNote ? `
+                      <div style="margin-top: 24px; padding: 14px 18px; background-color: #f8fafc; border-left: 3px solid #64748b; border-radius: 0 8px 8px 0;">
+                        <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.5; font-style: italic;">
+                          💡 <strong>Doctor's Note / Tip:</strong> ${footerNote}
+                        </p>
+                      </div>
+                    ` : ''}
+                  </td>
+                </tr>
+
+                <!-- FOOTER -->
+                <tr>
+                  <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 24px 32px; text-align: center;">
+                    <p style="margin: 0 0 8px; font-size: 13px; font-weight: 700; color: #334155;">
+                      CareSync Multi-Specialty Hospital & Medical Center
+                    </p>
+                    <p style="margin: 0 0 12px; font-size: 12px; color: #64748b; line-height: 1.5;">
+                      24x7 Emergency Helplines &bull; High-Tech OPD &bull; AI Diagnostics<br/>
+                      Support Desk: <a href="mailto:support@caresync.com" style="color: #2563eb; text-decoration: none; font-weight: 600;">support@caresync.com</a> &bull; +91 1800-CARESYNC
+                    </p>
+                    <p style="margin: 0; font-size: 11px; color: #94a3b8;">
+                      This is an automated verified communication sent from the CareSync Patient Portal.
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
     `;
@@ -406,14 +446,41 @@ export default function App() {
         'blue',
         userObj.name,
         `
-          <div class="card">
-            <div class="row"><span class="label">Account Role:</span><span class="val">${userObj.role.toUpperCase()}</span></div>
-            <div class="row"><span class="label">Login Time:</span><span class="val">${new Date().toLocaleString()}</span></div>
-            <div class="row"><span class="label">Device Access:</span><span class="val">CareSync Web Client Portal</span></div>
-          </div>
-          <p style="font-size: 13px; color: #475569;">You have successfully signed in to the CareSync Hospital Management Platform. If this wasn't you, please secure your account immediately.</p>
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin: 20px 0; overflow: hidden;">
+            <tr>
+              <td style="padding: 14px 20px; border-bottom: 1px solid #e2e8f0;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="font-size: 13px; color: #64748b; font-weight: 600;">Account Role:</td>
+                    <td style="font-size: 14px; color: #0f172a; font-weight: 800; text-align: right;">${userObj.role.toUpperCase()}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 14px 20px; border-bottom: 1px solid #e2e8f0;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="font-size: 13px; color: #64748b; font-weight: 600;">Sign-In Timestamp:</td>
+                    <td style="font-size: 13px; color: #0f172a; font-weight: 700; text-align: right;">${new Date().toLocaleString()}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 14px 20px;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="font-size: 13px; color: #64748b; font-weight: 600;">Access Point:</td>
+                    <td style="font-size: 13px; color: #16a34a; font-weight: 700; text-align: right;">CareSync Web Client (Encrypted SSL)</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+          <p style="font-size: 14px; color: #475569; line-height: 1.5;">You have successfully signed in to the CareSync Hospital Management Platform. If this wasn't you, please secure your account immediately.</p>
         `,
-        'For account security assistance, contact security@caresync.com.'
+        'For immediate account lockdown or security queries, email security@caresync.com.'
       );
 
       sendEmailAlert(
@@ -538,11 +605,38 @@ export default function App() {
       'green',
       cleanName,
       `
-        <div class="card">
-          <div class="row"><span class="label">Registered Email:</span><span class="val">${cleanEmail}</span></div>
-          <div class="row"><span class="label">Contact Phone:</span><span class="val">${cleanContact || 'Not specified'}</span></div>
-          <div class="row"><span class="label">Patient Portal Access:</span><span class="val" style="color: #16a34a;">Active & Verified</span></div>
-        </div>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin: 20px 0; overflow: hidden;">
+          <tr>
+            <td style="padding: 14px 20px; border-bottom: 1px solid #e2e8f0;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size: 13px; color: #64748b; font-weight: 600;">Registered Email:</td>
+                  <td style="font-size: 14px; color: #0f172a; font-weight: 800; text-align: right;">${cleanEmail}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 20px; border-bottom: 1px solid #e2e8f0;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size: 13px; color: #64748b; font-weight: 600;">Emergency Contact:</td>
+                  <td style="font-size: 13px; color: #0f172a; font-weight: 700; text-align: right;">${cleanContact || 'Not specified'}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 20px; background-color: #f0fdf4;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size: 13px; color: #166534; font-weight: 600;">Patient Portal Access:</td>
+                  <td style="font-size: 13px; color: #15803d; font-weight: 800; text-align: right;">✓ Active & Verified</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
         <p style="font-size: 14px; line-height: 1.6; color: #334155;">You can now schedule consultations with specialists, monitor clinical audit entries, and access AI-generated prescription summaries seamlessly.</p>
       `,
       'Keep your account credentials confidential. We will never ask for your password via email.'
@@ -619,20 +713,65 @@ export default function App() {
       'green',
       currentUser.name,
       `
-        <div class="card">
-          <div class="row"><span class="label">Consulting Specialist:</span><span class="val">${doc?.name}</span></div>
-          <div class="row"><span class="label">Medical Department:</span><span class="val">${doc?.specialty}</span></div>
-          <div class="row"><span class="label">Consultation Slot:</span><span class="val">2026-08-25 ${selectedSlot}</span></div>
-          <div class="row"><span class="label">Reported Symptoms:</span><span class="val" style="font-weight: 400; font-style: italic;">"${problemDescription}"</span></div>
-        </div>
-        <div style="text-align: center; margin: 25px 0;">
-          <a href="${getGoogleCalendarUrl(newAppt)}" target="_blank" rel="noopener noreferrer" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
-            📅 Add to Google Calendar
-          </a>
-        </div>
-        <p style="font-size: 13px; color: #475569; text-align: center;">Click above to add this consultation to your personal Google Calendar with automatic 15-minute reminders.</p>
+        <!-- APPOINTMENT DETAILS CARD -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin: 20px 0; overflow: hidden;">
+          <tr>
+            <td style="padding: 18px 20px; border-bottom: 1px solid #e2e8f0;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size: 13px; color: #64748b; font-weight: 600; width: 40%;">Consulting Specialist:</td>
+                  <td style="font-size: 14px; color: #0f172a; font-weight: 800; text-align: right;">${doc?.name}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 20px; border-bottom: 1px solid #e2e8f0;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size: 13px; color: #64748b; font-weight: 600; width: 40%;">Medical Specialty:</td>
+                  <td style="font-size: 14px; color: #0f172a; font-weight: 700; text-align: right;">${doc?.specialty}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 20px; border-bottom: 1px solid #e2e8f0; background-color: #f0fdf4;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="font-size: 13px; color: #166534; font-weight: 600; width: 40%;">Consultation Slot:</td>
+                  <td style="font-size: 14px; color: #15803d; font-weight: 800; text-align: right;">2026-08-25 &bull; ${selectedSlot}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 20px;">
+              <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 4px;">Reported Health Concern:</div>
+              <div style="font-size: 13px; color: #334155; font-style: italic; background-color: #ffffff; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                "${problemDescription}"
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- 1-CLICK GOOGLE CALENDAR BUTTON -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 26px 0 10px 0;">
+          <tr>
+            <td align="center">
+              <a href="${getGoogleCalendarUrl(newAppt)}" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); letter-spacing: 0.3px;">
+                📅 Add to Google Calendar &bull; Sync Now
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding-top: 10px;">
+              <span style="font-size: 12px; color: #64748b;">Includes 15-minute advance reminder & hospital OPD directions.</span>
+            </td>
+          </tr>
+        </table>
       `,
-      'Please arrive 10 minutes prior to your scheduled consultation slot.'
+      'Please arrive 10 minutes prior to your scheduled consultation slot with any past health records.'
     );
 
     sendEmailAlert(
@@ -677,14 +816,41 @@ export default function App() {
         'red',
         appt.patientName,
         `
-          <div class="card" style="border-left: 4px solid #ef4444;">
-            <div class="row"><span class="label">Doctor:</span><span class="val">${appt.doctorName}</span></div>
-            <div class="row"><span class="label">Original Timing:</span><span class="val">${appt.slotTime}</span></div>
-            <div class="row"><span class="label">Status:</span><span class="val" style="color: #ef4444;">Cancelled & Calendar Event Removed</span></div>
-          </div>
-          <p style="font-size: 13px; color: #475569;">Your scheduled appointment slot has been successfully released. You may book another consultation anytime through our portal.</p>
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #ef4444; border-radius: 12px; margin: 20px 0; overflow: hidden;">
+            <tr>
+              <td style="padding: 14px 20px; border-bottom: 1px solid #fee2e2;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="font-size: 13px; color: #991b1b; font-weight: 600;">Doctor:</td>
+                    <td style="font-size: 14px; color: #7f1d1d; font-weight: 800; text-align: right;">${appt.doctorName} (${appt.specialty})</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 14px 20px; border-bottom: 1px solid #fee2e2;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="font-size: 13px; color: #991b1b; font-weight: 600;">Original Slot:</td>
+                    <td style="font-size: 13px; color: #7f1d1d; font-weight: 700; text-align: right;">${appt.slotTime}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 14px 20px;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="font-size: 13px; color: #991b1b; font-weight: 600;">Calendar Status:</td>
+                    <td style="font-size: 13px; color: #dc2626; font-weight: 800; text-align: right;">Slot Released & Sync Removed</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+          <p style="font-size: 14px; color: #475569; line-height: 1.6;">Your scheduled appointment slot has been successfully released. You can book another consultation anytime through our online portal.</p>
         `,
-        'If this cancellation was unintended, please visit the CareSync portal to reschedule.'
+        'If this cancellation was unintended, please visit the CareSync portal immediately to reschedule.'
       );
 
       sendEmailAlert(
@@ -785,17 +951,39 @@ export default function App() {
       'green',
       apptObj?.patientName || 'Patient',
       `
-        <div class="card" style="border-left: 4px solid #10b981; background: #f0fdf4;">
-          <h4 style="margin: 0 0 8px; color: #065f46; font-size: 14px;">Clinical Prescription / Advice:</h4>
-          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #0f172a; white-space: pre-line;">${rxText}</p>
-        </div>
+        <!-- CLINICAL ADVICE TABLE -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #16a34a; border-radius: 12px; margin: 20px 0; overflow: hidden;">
+          <tr>
+            <td style="padding: 16px 20px; background-color: #dcfce7; border-bottom: 1px solid #bbf7d0;">
+              <span style="font-size: 14px; font-weight: 800; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">
+                🩺 Attending Specialist's Prescription / Advice
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 18px 20px;">
+              <p style="margin: 0; font-size: 14px; font-weight: 600; color: #0f172a; white-space: pre-line; line-height: 1.6;">${rxText}</p>
+            </td>
+          </tr>
+        </table>
 
-        <div class="card" style="border-left: 4px solid #3b82f6; background: #eff6ff;">
-          <h4 style="margin: 0 0 8px; color: #1e40af; font-size: 14px;">✨ Patient-Friendly AI Care Insights:</h4>
-          <p style="margin: 0; font-size: 13px; color: #334155; line-height: 1.6; white-space: pre-line;">${aiSummarySim}</p>
-        </div>
+        <!-- AI CLINICAL CARE INSIGHTS -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-left: 5px solid #2563eb; border-radius: 12px; margin: 20px 0; overflow: hidden;">
+          <tr>
+            <td style="padding: 16px 20px; background-color: #dbeafe; border-bottom: 1px solid #bfdbfe;">
+              <span style="font-size: 14px; font-weight: 800; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;">
+                ✨ CareSync Smart AI Dosage & Lifestyle Guide
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 18px 20px;">
+              <p style="margin: 0; font-size: 13px; color: #1e293b; line-height: 1.7; white-space: pre-line;">${aiSummarySim}</p>
+            </td>
+          </tr>
+        </table>
       `,
-      'Follow medical instructions carefully. In case of unexpected reactions, immediately contact the hospital.'
+      'Follow medical instructions carefully. In case of unexpected reactions, immediately contact the hospital helpline.'
     );
 
     sendEmailAlert(
